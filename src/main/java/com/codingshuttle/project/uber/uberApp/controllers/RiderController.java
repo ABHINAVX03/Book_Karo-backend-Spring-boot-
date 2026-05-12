@@ -35,6 +35,11 @@ public class RiderController {
         return ResponseEntity.ok(riderService.requestRide(rideRequestDto));
     }
 
+    @PostMapping("/cancelRideRequest/{rideRequestId}")
+    public ResponseEntity<RideRequestDto> cancelRideRequest(@PathVariable Long rideRequestId) {
+        return ResponseEntity.ok(riderService.cancelRideRequest(rideRequestId));
+    }
+
     @PostMapping("/cancelRide/{rideId}")
     public ResponseEntity<RideDto> cancelRide(@PathVariable Long rideId) {
         return ResponseEntity.ok(riderService.cancelRide(rideId));

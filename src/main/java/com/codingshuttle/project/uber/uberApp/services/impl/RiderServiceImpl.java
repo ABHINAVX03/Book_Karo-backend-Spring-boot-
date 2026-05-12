@@ -93,6 +93,31 @@ public class RiderServiceImpl implements RiderService {
         return modelMapper.map(savedRideRequest, RideRequestDto.class);
     }
 
+    @Override
+    @Transactional
+    public RideRequestDto cancelRideRequest(Long rideRequestId) {
+        Rider rider = getCurrentRider();
+        RideRequest rideRequest = rideRequestRepository.findById(rideRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("RideRequest not found with id: " + rideRequestId));
+
+        if (!rider.equals(rideRequest.getRider())) {
+            throw new UnauthorizedAccessException(
+                    "Rider id=" + rider.getId() + " does not own ride request id=" + rideRequestId);
+        }
+
+        if (!rideRequest.getRideRequestStatus().equals(RideRequestStatus.PENDING)) {
+            throw new InvalidRideStatusException(
+                    "Ride request id=" + rideRequestId + " cannot be cancelled; current status: " +
+                            rideRequest.getRideRequestStatus());
+        }
+
+        rideRequest.setRideRequestStatus(RideRequestStatus.CANCELLED);
+        RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
+        log.info("RideRequest id={} cancelled by rider id={}", rideRequestId, rider.getId());
+
+        return modelMapper.map(savedRideRequest, RideRequestDto.class);
+    }
+
     /**
      * Cancels a CONFIRMED ride.
      * Guards:
