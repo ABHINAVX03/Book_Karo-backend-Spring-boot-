@@ -45,7 +45,8 @@ public class AuthController {
 
         httpServletResponse.addCookie(cookie);
 
-        return ResponseEntity.ok(new LoginResponseDto(tokens[0]));
+        UserDto userDto = authService.getUserByEmail(loginRequestDto.getEmail());
+        return ResponseEntity.ok(new LoginResponseDto(tokens[0], userDto));
     }
 
     @PostMapping("/refresh")
@@ -58,7 +59,7 @@ public class AuthController {
 
         String accessToken = authService.refreshToken(refreshToken);
 
-        return ResponseEntity.ok(new LoginResponseDto(accessToken));
+        return ResponseEntity.ok(new LoginResponseDto(accessToken, null));
     }
 
 

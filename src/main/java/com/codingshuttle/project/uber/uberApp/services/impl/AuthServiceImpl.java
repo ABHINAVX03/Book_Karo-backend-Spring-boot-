@@ -124,6 +124,13 @@ public class AuthServiceImpl implements AuthService {
 
         return jwtService.generateAccessToken(user);
     }
+
+    @Override
+    public UserDto getUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        return modelMapper.map(user, UserDto.class);
+    }
 }
 
 
