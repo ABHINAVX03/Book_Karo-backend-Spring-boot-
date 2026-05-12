@@ -137,14 +137,7 @@ public class DriverServiceImpl implements DriverService {
 
     @Override
     public DriverDto updateLocation(PointDto pointDto) {
-
         Driver driver = getCurrentDriver();
-
-        double longitude = pointDto.getCoordinates()[0];
-        double latitude = pointDto.getCoordinates()[1];
-
-        System.out.println("Longitude: " + longitude);
-        System.out.println("Latitude: " + latitude);
 
         Point point = GeometryUtil.createPoint(pointDto);
 
