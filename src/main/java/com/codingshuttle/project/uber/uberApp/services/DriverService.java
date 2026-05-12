@@ -8,8 +8,6 @@ import com.codingshuttle.project.uber.uberApp.entities.Driver;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
-import java.util.List;
-
 public interface DriverService {
 
     RideDto acceptRide(Long rideRequestId);
@@ -20,11 +18,11 @@ public interface DriverService {
 
     RideDto endRide(Long rideId);
 
-    DriverDto updateLocation(PointDto pointDto);
-
     RiderDto rateRider(Long rideId, Integer rating);
 
     DriverDto getMyProfile();
+
+    DriverDto updateLocation(PointDto pointDto);
 
     Page<RideDto> getAllMyRides(PageRequest pageRequest);
 
