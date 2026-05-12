@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -20,7 +21,7 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
         AND rr.rideRequestStatus = :status
         ORDER BY rr.id DESC
     """)
-    Optional<RideRequest> findFirstByNotifiedDriversContainingAndRideRequestStatus(
+    List<RideRequest> findByNotifiedDriversContainingAndRideRequestStatus(
             @Param("driver") Driver driver,
             @Param("status") RideRequestStatus status
     );

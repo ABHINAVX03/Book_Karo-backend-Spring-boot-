@@ -2,7 +2,6 @@ package com.codingshuttle.project.uber.uberApp.repositories;
 
 import com.codingshuttle.project.uber.uberApp.entities.Driver;
 import com.codingshuttle.project.uber.uberApp.entities.User;
-import org.locationtech.jts.geom.Point;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,14 +16,14 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     @Query(value = """
         SELECT d.*,
                ST_Distance(
-                   ST_SetSRID(d.current_location, 4326)::geography,
+                   d.current_location::geography,
                    ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
                ) AS distance
         FROM driver d
         WHERE d.available = true
           AND d.current_location IS NOT NULL
           AND ST_DWithin(
-                ST_SetSRID(d.current_location, 4326)::geography,
+                d.current_location::geography,
                 ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
                 10000
           )
@@ -40,7 +39,7 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
         WHERE d.available = true
           AND d.current_location IS NOT NULL
           AND ST_DWithin(
-                ST_SetSRID(d.current_location, 4326)::geography,
+                d.current_location::geography,
                 ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
                 15000
           )

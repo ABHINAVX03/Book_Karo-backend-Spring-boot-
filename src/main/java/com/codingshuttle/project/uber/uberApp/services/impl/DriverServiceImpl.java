@@ -181,11 +181,11 @@ public class DriverServiceImpl implements DriverService {
     @Override
     public RideRequestDto getIncomingRideRequest() {
         Driver currentDriver = getCurrentDriver();
-        return rideRequestRepository
-                .findFirstByNotifiedDriversContainingAndRideRequestStatus(
-                        currentDriver, RideRequestStatus.PENDING)
-                .map(rr -> modelMapper.map(rr, RideRequestDto.class))
-                .orElse(null);
+        List<RideRequest> requests = rideRequestRepository
+                .findByNotifiedDriversContainingAndRideRequestStatus(
+                        currentDriver, RideRequestStatus.PENDING);
+        if (requests == null || requests.isEmpty()) return null;
+        return modelMapper.map(requests.get(0), RideRequestDto.class);
     }
 
     @Override
