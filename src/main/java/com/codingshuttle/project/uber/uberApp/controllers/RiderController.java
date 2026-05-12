@@ -1,0 +1,82 @@
+package com.codingshuttle.project.uber.uberApp.controllers;
+
+import com.codingshuttle.project.uber.uberApp.dto.*;
+import com.codingshuttle.project.uber.uberApp.services.AuthService;
+import com.codingshuttle.project.uber.uberApp.services.RiderService;
+import com.codingshuttle.project.uber.uberApp.services.WalletService;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.codingshuttle.project.uber.uberApp.entities.User;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/riders")
+@RequiredArgsConstructor
+@Secured("ROLE_RIDER")
+public class RiderController {
+
+    private final RiderService riderService;
+    private final WalletService walletService;
+    private final AuthService authService;
+
+    @PostMapping("/estimateFare")
+    public ResponseEntity<RideRequestDto> estimateFare(@RequestBody RideRequestDto rideRequestDto) {
+        return ResponseEntity.ok(riderService.estimateFare(rideRequestDto));
+    }
+
+    @PostMapping("/requestRide")
+    public ResponseEntity<RideRequestDto> requestRide(@RequestBody RideRequestDto rideRequestDto) {
+        return ResponseEntity.ok(riderService.requestRide(rideRequestDto));
+    }
+
+    @PostMapping("/cancelRide/{rideId}")
+    public ResponseEntity<RideDto> cancelRide(@PathVariable Long rideId) {
+        return ResponseEntity.ok(riderService.cancelRide(rideId));
+    }
+
+    @PostMapping("/rateDriver")
+    public ResponseEntity<DriverDto> rateDriver(@RequestBody RatingDto ratingDto) {
+        return ResponseEntity.ok(riderService.rateDriver(ratingDto.getRideId(), ratingDto.getRating()));
+    }
+
+    @GetMapping("/getMyProfile")
+    public ResponseEntity<RiderDto> getMyProfile() {
+        return ResponseEntity.ok(riderService.getMyProfile());
+    }
+
+    @PutMapping("/updateProfile")
+    public ResponseEntity<UserDto> updateProfile(@RequestBody UpdateProfileDto updateProfileDto) {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(authService.updateProfile(user.getId(), updateProfileDto));
+    }
+
+    @GetMapping("/getMyRides")
+    public ResponseEntity<Page<RideDto>> getAllMyRides(@RequestParam(defaultValue = "0") Integer pageOffset,
+                                                       @RequestParam(defaultValue = "10", required = false) Integer pageSize) {
+        PageRequest pageRequest = PageRequest.of(pageOffset, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdTime", "id"));
+        return ResponseEntity.ok(riderService.getAllMyRides(pageRequest));
+    }
+
+    @GetMapping("/wallet")
+    public ResponseEntity<WalletDto> getMyWallet() {
+        return ResponseEntity.ok(walletService.getMyWallet());
+    }
+
+    @PostMapping("/wallet/addMoney")
+    public ResponseEntity<WalletDto> addMoneyToWallet(@RequestBody WalletAmountDto walletAmountDto) {
+        return ResponseEntity.ok(walletService.addMoneyToMyWallet(walletAmountDto.getAmount()));
+    }
+
+    @PostMapping("/wallet/withdraw")
+    public ResponseEntity<WalletDto> withdrawMoneyFromWallet(@RequestBody WalletAmountDto walletAmountDto) {
+        return ResponseEntity.ok(walletService.withdrawMoneyFromMyWallet(walletAmountDto.getAmount()));
+    }
+
+}
