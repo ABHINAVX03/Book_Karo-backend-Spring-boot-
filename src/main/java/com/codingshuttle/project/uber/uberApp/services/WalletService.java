@@ -1,6 +1,8 @@
 package com.codingshuttle.project.uber.uberApp.services;
 
 import com.codingshuttle.project.uber.uberApp.dto.WalletDto;
+import com.codingshuttle.project.uber.uberApp.dto.WalletPaymentOrderDto;
+import com.codingshuttle.project.uber.uberApp.dto.WalletPaymentVerificationDto;
 import com.codingshuttle.project.uber.uberApp.entities.Ride;
 import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.Wallet;
@@ -27,6 +29,10 @@ public interface WalletService {
     WalletDto getMyWallet();
 
     WalletDto addMoneyToMyWallet(Double amount);
+
+    WalletPaymentOrderDto createWalletTopUpOrder(Double amount);
+
+    WalletDto verifyWalletTopUpPayment(WalletPaymentVerificationDto verificationDto);
 
     WalletDto withdrawMoneyFromMyWallet(Double amount);
 

@@ -2,7 +2,10 @@ package com.codingshuttle.project.uber.uberApp.services.impl;
 
 import com.codingshuttle.project.uber.uberApp.dto.RideDto;
 import com.codingshuttle.project.uber.uberApp.dto.WalletDto;
+import com.codingshuttle.project.uber.uberApp.dto.WalletPaymentOrderDto;
+import com.codingshuttle.project.uber.uberApp.dto.WalletPaymentVerificationDto;
 import com.codingshuttle.project.uber.uberApp.dto.WalletTransactionDto;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.codingshuttle.project.uber.uberApp.entities.Ride;
 import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.Wallet;
@@ -17,12 +20,20 @@ import com.codingshuttle.project.uber.uberApp.services.WalletService;
 import com.codingshuttle.project.uber.uberApp.services.WalletTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.web.client.RestClient;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +45,16 @@ public class WalletServiceImpl implements WalletService {
     private final WalletTransactionRepository walletTransactionRepository;
     private final WalletTransactionService walletTransactionService;
     private final ModelMapper modelMapper;
+
+    @Value("${razorpay.key-id:}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key-secret:}")
+    private String razorpayKeySecret;
+
+    private final RestClient razorpayClient = RestClient.builder()
+            .baseUrl("https://api.razorpay.com/v1")
+            .build();
 
     @Override
     @Transactional
@@ -136,6 +157,83 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    public WalletPaymentOrderDto createWalletTopUpOrder(Double amount) {
+        validateAmount(amount);
+        ensureRazorpayConfigured();
+
+        int amountInPaise = toPaise(amount);
+        JsonNode order = razorpayClient
+                .post()
+                .uri("/orders")
+                .headers(headers -> headers.setBasicAuth(razorpayKeyId, razorpayKeySecret))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                        "amount", amountInPaise,
+                        "currency", "INR",
+                        "receipt", "wallet_" + getCurrentUser().getId() + "_" + System.currentTimeMillis()
+                ))
+                .retrieve()
+                .body(JsonNode.class);
+
+        if (order == null || order.get("id") == null) {
+            throw new RuntimeConflictException("Unable to create payment order");
+        }
+
+        return new WalletPaymentOrderDto(
+                razorpayKeyId,
+                order.get("id").asText(),
+                order.get("amount").asInt(),
+                order.get("currency").asText("INR"),
+                "BookCar Wallet"
+        );
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(cacheNames = "wallets", key = "#root.target.getCurrentUserIdForCache()")
+    public WalletDto verifyWalletTopUpPayment(WalletPaymentVerificationDto verificationDto) {
+        ensureRazorpayConfigured();
+        validateVerificationPayload(verificationDto);
+
+        String generatedSignature = hmacSha256(
+                verificationDto.getRazorpayOrderId() + "|" + verificationDto.getRazorpayPaymentId(),
+                razorpayKeySecret
+        );
+
+        if (!MessageDigest.isEqual(
+                generatedSignature.getBytes(StandardCharsets.UTF_8),
+                verificationDto.getRazorpaySignature().getBytes(StandardCharsets.UTF_8)
+        )) {
+            throw new RuntimeConflictException("Payment verification failed");
+        }
+
+        if (walletTransactionRepository.findByTransactionId(verificationDto.getRazorpayPaymentId()).isPresent()) {
+            return getMyWallet();
+        }
+
+        JsonNode payment = razorpayClient
+                .get()
+                .uri("/payments/{paymentId}", verificationDto.getRazorpayPaymentId())
+                .headers(headers -> headers.setBasicAuth(razorpayKeyId, razorpayKeySecret))
+                .retrieve()
+                .body(JsonNode.class);
+
+        validateCapturedPayment(payment, verificationDto.getRazorpayOrderId());
+
+        double amount = payment.get("amount").asInt() / 100.0;
+        TransactionMethod method = toTransactionMethod(payment.path("method").asText());
+        Wallet wallet = addMoneyToWallet(
+                getCurrentUser(),
+                amount,
+                verificationDto.getRazorpayPaymentId(),
+                null,
+                method
+        );
+
+        return toWalletDto(wallet);
+    }
+
+    @Override
     @Transactional
     @CacheEvict(cacheNames = "wallets", key = "#root.target.getCurrentUserIdForCache()")
     public WalletDto withdrawMoneyFromMyWallet(Double amount) {
@@ -156,6 +254,64 @@ public class WalletServiceImpl implements WalletService {
     private void validateAmount(Double amount) {
         if (amount == null || amount <= 0) {
             throw new RuntimeConflictException("Amount must be greater than 0");
+        }
+    }
+
+    private void ensureRazorpayConfigured() {
+        if (razorpayKeyId == null || razorpayKeyId.isBlank() ||
+                razorpayKeySecret == null || razorpayKeySecret.isBlank()) {
+            throw new RuntimeConflictException("Payment gateway is not configured");
+        }
+    }
+
+    private int toPaise(Double amount) {
+        long paise = Math.round(amount * 100);
+        if (paise <= 0 || paise > Integer.MAX_VALUE) {
+            throw new RuntimeConflictException("Invalid payment amount");
+        }
+        return (int) paise;
+    }
+
+    private void validateVerificationPayload(WalletPaymentVerificationDto verificationDto) {
+        if (verificationDto == null ||
+                verificationDto.getRazorpayOrderId() == null ||
+                verificationDto.getRazorpayPaymentId() == null ||
+                verificationDto.getRazorpaySignature() == null) {
+            throw new RuntimeConflictException("Missing payment verification details");
+        }
+    }
+
+    private void validateCapturedPayment(JsonNode payment, String orderId) {
+        if (payment == null ||
+                !orderId.equals(payment.path("order_id").asText()) ||
+                !"captured".equalsIgnoreCase(payment.path("status").asText()) ||
+                payment.path("amount").asInt(0) <= 0) {
+            throw new RuntimeConflictException("Payment has not been captured");
+        }
+    }
+
+    private TransactionMethod toTransactionMethod(String method) {
+        return switch (String.valueOf(method).toLowerCase()) {
+            case "upi" -> TransactionMethod.UPI;
+            case "card" -> TransactionMethod.CARD;
+            case "netbanking" -> TransactionMethod.NETBANKING;
+            case "wallet" -> TransactionMethod.WALLET;
+            default -> TransactionMethod.BANKING;
+        };
+    }
+
+    private String hmacSha256(String data, String secret) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] digest = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception exception) {
+            throw new RuntimeConflictException("Payment verification failed");
         }
     }
 
