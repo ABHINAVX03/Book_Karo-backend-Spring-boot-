@@ -1,6 +1,7 @@
 package com.codingshuttle.project.uber.uberApp.services.impl;
 
 import com.codingshuttle.project.uber.uberApp.dto.DriverDto;
+import com.codingshuttle.project.uber.uberApp.dto.PointDto;
 import com.codingshuttle.project.uber.uberApp.dto.RideDto;
 import com.codingshuttle.project.uber.uberApp.dto.RiderDto;
 import com.codingshuttle.project.uber.uberApp.entities.Driver;
@@ -12,7 +13,9 @@ import com.codingshuttle.project.uber.uberApp.entities.enums.RideStatus;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.repositories.DriverRepository;
 import com.codingshuttle.project.uber.uberApp.services.*;
+import com.codingshuttle.project.uber.uberApp.utils.GeometryUtil;
 import lombok.RequiredArgsConstructor;
+import org.locationtech.jts.geom.Point;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -130,6 +133,24 @@ public class DriverServiceImpl implements DriverService {
         paymentService.processPayment(ride);
 
         return modelMapper.map(savedRide, RideDto.class);
+    }
+
+    @Override
+    public DriverDto updateLocation(PointDto pointDto) {
+
+        Driver driver = getCurrentDriver();
+
+        double longitude = pointDto.getCoordinates()[0];
+        double latitude = pointDto.getCoordinates()[1];
+
+        System.out.println("Longitude: " + longitude);
+        System.out.println("Latitude: " + latitude);
+
+        Point point = GeometryUtil.createPoint(pointDto);
+
+        driver.setCurrentLocation(point);
+
+        return modelMapper.map(driverRepository.save(driver), DriverDto.class);
     }
 
     @Override

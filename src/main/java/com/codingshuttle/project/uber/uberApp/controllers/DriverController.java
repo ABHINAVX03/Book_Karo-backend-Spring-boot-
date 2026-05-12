@@ -40,6 +40,11 @@ public class DriverController {
         return ResponseEntity.ok(driverService.endRide(rideId));
     }
 
+    @PatchMapping("/updateLocation")
+    public ResponseEntity<DriverDto> updateLocation(@RequestBody PointDto pointDto) {
+        return ResponseEntity.ok(driverService.updateLocation(pointDto));
+    }
+
     @PostMapping("/cancelRide/{rideId}")
     public ResponseEntity<RideDto> cancelRide(@PathVariable Long rideId) {
         return ResponseEntity.ok(driverService.cancelRide(rideId));
