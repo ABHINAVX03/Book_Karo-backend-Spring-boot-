@@ -2,6 +2,7 @@ package com.codingshuttle.project.uber.uberApp.services.impl;
 
 import com.codingshuttle.project.uber.uberApp.dto.DriverDto;
 import com.codingshuttle.project.uber.uberApp.dto.PointDto;
+import com.codingshuttle.project.uber.uberApp.dto.RideRequestDto;
 import com.codingshuttle.project.uber.uberApp.dto.RideDto;
 import com.codingshuttle.project.uber.uberApp.dto.RiderDto;
 import com.codingshuttle.project.uber.uberApp.entities.Driver;
@@ -9,13 +10,14 @@ import com.codingshuttle.project.uber.uberApp.entities.Ride;
 import com.codingshuttle.project.uber.uberApp.entities.RideRequest;
 import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.enums.RideRequestStatus;
+import com.codingshuttle.project.uber.uberApp.repositories.RideRequestRepository;
 import com.codingshuttle.project.uber.uberApp.entities.enums.RideStatus;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.repositories.DriverRepository;
-import com.codingshuttle.project.uber.uberApp.services.*;
 import com.codingshuttle.project.uber.uberApp.utils.GeometryUtil;
-import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Point;
+import com.codingshuttle.project.uber.uberApp.services.*;
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -32,6 +34,7 @@ import java.util.List;
 public class DriverServiceImpl implements DriverService {
 
     private final RideRequestService rideRequestService;
+    private final RideRequestRepository rideRequestRepository;
     private final DriverRepository driverRepository;
     private final RideService rideService;
     private final ModelMapper modelMapper;
@@ -136,17 +139,6 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
-    public DriverDto updateLocation(PointDto pointDto) {
-        Driver driver = getCurrentDriver();
-
-        Point point = GeometryUtil.createPoint(pointDto);
-
-        driver.setCurrentLocation(point);
-
-        return modelMapper.map(driverRepository.save(driver), DriverDto.class);
-    }
-
-    @Override
     public RiderDto rateRider(Long rideId, Integer rating) {
         Ride ride = rideService.getRideById(rideId);
         Driver driver = getCurrentDriver();
@@ -176,6 +168,24 @@ public class DriverServiceImpl implements DriverService {
             rideDto.setRiderRating(ratingService.getRiderRating(ride));
             return rideDto;
         });
+    }
+
+    @Override
+    public DriverDto updateLocation(PointDto pointDto) {
+        Driver driver = getCurrentDriver();
+        Point point = GeometryUtil.createPoint(pointDto);
+        driver.setCurrentLocation(point);
+        return modelMapper.map(driverRepository.save(driver), DriverDto.class);
+    }
+
+    @Override
+    public RideRequestDto getIncomingRideRequest() {
+        Driver currentDriver = getCurrentDriver();
+        return rideRequestRepository
+                .findFirstByNotifiedDriversContainingAndRideRequestStatus(
+                        currentDriver, RideRequestStatus.PENDING)
+                .map(rr -> modelMapper.map(rr, RideRequestDto.class))
+                .orElse(null);
     }
 
     @Override

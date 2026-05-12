@@ -1,10 +1,27 @@
 package com.codingshuttle.project.uber.uberApp.repositories;
 
+import com.codingshuttle.project.uber.uberApp.entities.Driver;
 import com.codingshuttle.project.uber.uberApp.entities.RideRequest;
+import com.codingshuttle.project.uber.uberApp.entities.enums.RideRequestStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
 
 @Repository
 public interface RideRequestRepository extends JpaRepository<RideRequest, Long> {
 
+    @Query("""
+        SELECT rr FROM RideRequest rr
+        JOIN rr.notifiedDrivers d
+        WHERE d = :driver
+        AND rr.rideRequestStatus = :status
+        ORDER BY rr.id DESC
+    """)
+    Optional<RideRequest> findFirstByNotifiedDriversContainingAndRideRequestStatus(
+            @Param("driver") Driver driver,
+            @Param("status") RideRequestStatus status
+    );
 }

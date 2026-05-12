@@ -1,6 +1,7 @@
 package com.codingshuttle.project.uber.uberApp.services;
 
 import com.codingshuttle.project.uber.uberApp.dto.DriverDto;
+import com.codingshuttle.project.uber.uberApp.dto.RideRequestDto;
 import com.codingshuttle.project.uber.uberApp.dto.PointDto;
 import com.codingshuttle.project.uber.uberApp.dto.RideDto;
 import com.codingshuttle.project.uber.uberApp.dto.RiderDto;
@@ -23,6 +24,8 @@ public interface DriverService {
     DriverDto getMyProfile();
 
     DriverDto updateLocation(PointDto pointDto);
+
+    RideRequestDto getIncomingRideRequest();
 
     Page<RideDto> getAllMyRides(PageRequest pageRequest);
 
