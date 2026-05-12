@@ -17,13 +17,14 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     @Query(value = """
         SELECT d.*,
                ST_Distance(
-                   d.current_location::geography,
+                   ST_SetSRID(d.current_location, 4326)::geography,
                    ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
                ) AS distance
         FROM driver d
         WHERE d.available = true
+          AND d.current_location IS NOT NULL
           AND ST_DWithin(
-                d.current_location::geography,
+                ST_SetSRID(d.current_location, 4326)::geography,
                 ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
                 10000
           )
@@ -37,8 +38,9 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
         SELECT d.*
         FROM driver d
         WHERE d.available = true
+          AND d.current_location IS NOT NULL
           AND ST_DWithin(
-                d.current_location::geography,
+                ST_SetSRID(d.current_location, 4326)::geography,
                 ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
                 15000
           )
