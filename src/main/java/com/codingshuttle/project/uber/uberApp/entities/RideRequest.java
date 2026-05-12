@@ -9,6 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.locationtech.jts.geom.Point;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -45,4 +47,12 @@ public class RideRequest {
     private Double fare;
 
     private String otp;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "ride_request_notified_drivers",
+            joinColumns = @JoinColumn(name = "ride_request_id"),
+            inverseJoinColumns = @JoinColumn(name = "driver_id")
+    )
+    private List<Driver> notifiedDrivers = new ArrayList<>();
 }

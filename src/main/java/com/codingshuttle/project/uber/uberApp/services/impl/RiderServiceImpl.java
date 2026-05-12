@@ -83,6 +83,10 @@ public class RiderServiceImpl implements RiderService {
                 .driverMatchingStrategy(rider.getRating())
                 .findMatchingDriver(savedRideRequest);
 
+        // Save the matched drivers on the request so acceptRide() can validate them
+        savedRideRequest.setNotifiedDrivers(matchedDrivers);
+        rideRequestRepository.save(savedRideRequest);
+
         // Notify all matched drivers about the new ride request
         notificationService.notifyDriversAboutRideRequest(savedRideRequest, matchedDrivers);
 

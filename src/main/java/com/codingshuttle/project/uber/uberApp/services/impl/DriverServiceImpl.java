@@ -49,6 +49,15 @@ public class DriverServiceImpl implements DriverService {
             throw new RuntimeException("Driver cannot accept ride due to unavailability");
         }
 
+        // Ensure this driver was among the notified (nearby) drivers for this request
+        boolean isNotifiedDriver = rideRequest.getNotifiedDrivers()
+                .stream()
+                .anyMatch(d -> d.getId().equals(currentDriver.getId()));
+
+        if (!isNotifiedDriver) {
+            throw new RuntimeException("Driver is not in the area for this ride request");
+        }
+
         Driver savedDriver = updateDriverAvailability(currentDriver, false);
 
         Ride ride = rideService.createNewRide(rideRequest, savedDriver);
