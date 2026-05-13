@@ -14,11 +14,7 @@ import java.util.Optional;
 public interface DriverRepository extends JpaRepository<Driver, Long> {
 
     @Query(value = """
-        SELECT d.*,
-               ST_Distance(
-                   d.current_location::geography,
-                   ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
-               ) AS distance
+        SELECT d.*
         FROM driver d
         WHERE d.available = true
           AND d.current_location IS NOT NULL
@@ -27,7 +23,10 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
                 ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
                 10000
           )
-        ORDER BY distance
+        ORDER BY ST_Distance(
+                d.current_location::geography,
+                ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+            )
         LIMIT 10
     """, nativeQuery = true)
     List<Driver> findTenNearestDrivers(@Param("longitude") double longitude,
@@ -41,9 +40,13 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
           AND ST_DWithin(
                 d.current_location::geography,
                 ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
-                15000
+                10000
           )
-        ORDER BY d.rating DESC
+        ORDER BY ST_Distance(
+                d.current_location::geography,
+                ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+            ) ASC,
+            d.rating DESC NULLS LAST
         LIMIT 10
     """, nativeQuery = true)
     List<Driver> findTenNearbyTopRatedDrivers(@Param("longitude") double longitude,

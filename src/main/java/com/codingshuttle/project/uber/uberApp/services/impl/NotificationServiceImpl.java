@@ -22,12 +22,20 @@ public class NotificationServiceImpl implements NotificationService {
             log.warn("[Notification] No drivers to notify for RideRequest id={}", rideRequest.getId());
             return;
         }
-        drivers.forEach(driver ->
-                log.info("[Notification] Notifying driver id={} (user={}) about RideRequest id={}",
-                        driver.getId(),
-                        driver.getUser().getId(),
-                        rideRequest.getId())
-        );
+        drivers.forEach(driver -> {
+            Long userId = null;
+            try {
+                if (driver.getUser() != null) {
+                    userId = driver.getUser().getId();
+                }
+            } catch (Exception ignored) {
+                // Avoid failing the ride request if a lazy association cannot be resolved here
+            }
+            log.info("[Notification] Notifying driver id={} (user={}) about RideRequest id={}",
+                    driver.getId(),
+                    userId,
+                    rideRequest.getId());
+        });
         // TODO: replace with real push/WebSocket/SMS call, e.g.
         // drivers.forEach(driver ->
         //     fcmService.sendPush(driver.getUser().getDeviceToken(), buildPayload(rideRequest))

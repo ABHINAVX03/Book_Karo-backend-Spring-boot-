@@ -1,6 +1,5 @@
 package com.codingshuttle.project.uber.uberApp.strategies;
 
-import com.codingshuttle.project.uber.uberApp.strategies.impl.DriverMatchingHighestRatedDriverStrategy;
 import com.codingshuttle.project.uber.uberApp.strategies.impl.DriverMatchingNearestDriverStrategy;
 import com.codingshuttle.project.uber.uberApp.strategies.impl.RideFareSurgePricingFareCalculationStrategy;
 import com.codingshuttle.project.uber.uberApp.strategies.impl.RiderFareDefaultFareCalculationStrategy;
@@ -13,17 +12,17 @@ import java.time.LocalTime;
 @RequiredArgsConstructor
 public class RideStrategyManager {
 
-    private final DriverMatchingHighestRatedDriverStrategy highestRatedDriverStrategy;
     private final DriverMatchingNearestDriverStrategy nearestDriverStrategy;
     private final RideFareSurgePricingFareCalculationStrategy surgePricingFareCalculationStrategy;
     private final RiderFareDefaultFareCalculationStrategy defaultFareCalculationStrategy;
 
+    /**
+     * Prefer nearest drivers within the configured radius for all riders.
+     * (High-rating riders previously used "top rated in bubble" ordering, which could
+     * exclude nearby drivers and made incoming requests invisible on the driver panel.)
+     */
     public DriverMatchingStrategy driverMatchingStrategy(double riderRating) {
-        if(riderRating >= 4.8) {
-            return highestRatedDriverStrategy;
-        } else {
-            return nearestDriverStrategy;
-        }
+        return nearestDriverStrategy;
     }
 
     public RideFareCalculationStrategy rideFareCalculationStrategy() {
