@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- V2: Fix wallet_transaction enum columns
 -- Converts transaction_method and transaction_type from ordinal
 -- integers to string values to fix check constraint violation
