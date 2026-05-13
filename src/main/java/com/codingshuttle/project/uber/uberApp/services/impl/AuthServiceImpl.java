@@ -9,6 +9,7 @@ import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.enums.Role;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.exceptions.RuntimeConflictException;
+import com.codingshuttle.project.uber.uberApp.exceptions.UnauthorizedAccessException;
 import com.codingshuttle.project.uber.uberApp.repositories.UserRepository;
 import com.codingshuttle.project.uber.uberApp.security.JWTService;
 import com.codingshuttle.project.uber.uberApp.services.AuthService;
@@ -20,6 +21,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -95,7 +97,18 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public DriverDto onboardNewDriver(Long userId, String vehicleId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof User currentUser)) {
+            throw new UnauthorizedAccessException("Sign in is required to register your vehicle.");
+        }
+        if (!currentUser.getId().equals(userId)) {
+            throw new UnauthorizedAccessException("You can only complete vehicle registration for your own account.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id "+userId));
 

@@ -26,7 +26,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class WebSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-    private static final String[] PUBLIC_ROUTES= {"/auth/**"};
+    /** Public auth endpoints only; driver onboarding requires a signed-in user + JWT. */
+    private static final String[] PUBLIC_AUTH_ROUTES = {
+            "/auth/signup",
+            "/auth/login",
+            "/auth/refresh",
+    };
 
     @Value("${app.cors.allowed-origins:http://localhost,http://localhost:3000,http://localhost:5173,http://localhost:4173,https://book-car-frontend.vercel.app}")
     private String allowedOrigins;
@@ -40,7 +45,7 @@ public class WebSecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(csrfConfig -> csrfConfig.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PUBLIC_ROUTES).permitAll()
+                        .requestMatchers(PUBLIC_AUTH_ROUTES).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -2,6 +2,7 @@ package com.codingshuttle.project.uber.uberApp.advices;
 
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.exceptions.RuntimeConflictException;
+import com.codingshuttle.project.uber.uberApp.exceptions.UnauthorizedAccessException;
 import io.jsonwebtoken.JwtException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<?>> handleAccessDeniedException(AccessDeniedException ex) {
+        ApiError apiError = new ApiError(HttpStatus.FORBIDDEN, ex.getMessage(), null);
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(UnauthorizedAccessException.class)
+    public ResponseEntity<ApiResponse<?>> handleUnauthorizedAccess(UnauthorizedAccessException ex) {
         ApiError apiError = new ApiError(HttpStatus.FORBIDDEN, ex.getMessage(), null);
         return buildErrorResponseEntity(apiError);
     }
