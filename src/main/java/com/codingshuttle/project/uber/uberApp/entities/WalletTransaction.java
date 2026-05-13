@@ -1,4 +1,4 @@
-﻿package com.codingshuttle.project.uber.uberApp.entities;
+package com.codingshuttle.project.uber.uberApp.entities;
 
 import com.codingshuttle.project.uber.uberApp.entities.enums.TransactionMethod;
 import com.codingshuttle.project.uber.uberApp.entities.enums.TransactionType;
