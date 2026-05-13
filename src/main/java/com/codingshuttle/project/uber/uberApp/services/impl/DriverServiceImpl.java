@@ -143,16 +143,23 @@ public class DriverServiceImpl implements DriverService {
         }
 
         ride.setEndedAt(LocalDateTime.now());
-        Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ENDED);
-        updateDriverAvailability(driver, true);
 
+        // Process payment BEFORE updating ride status to ensure atomicity
+        // If payment fails, the ride status remains ONGOING and no inconsistent state is created
         if (PaymentMethod.RAZORPAY.equals(ride.getPaymentMethod())) {
             // For Razorpay rides: do NOT process payment here.
             // The rider will pay via Razorpay checkout and call /riders/rides/{id}/verify-ride-payment
             log.info("Ride id={} ended with RAZORPAY — awaiting rider payment", rideId);
         } else {
-            // WALLET / CASH: process immediately and send receipt
-            paymentService.processPayment(savedRide);
+            // WALLET / CASH: process payment immediately (before status change)
+            paymentService.processPayment(ride);
+        }
+
+        // Update ride status to ENDED only after successful payment processing
+        Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ENDED);
+        updateDriverAvailability(driver, true);
+
+        if (!PaymentMethod.RAZORPAY.equals(ride.getPaymentMethod())) {
             sendRideReceiptEmail(savedRide);
         }
 
