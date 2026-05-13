@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,6 +16,12 @@ import java.util.List;
 @Repository
 public interface RideRepository extends JpaRepository<Ride, Long> {
     Page<Ride> findByRider(Rider rider, Pageable pageRequest);
-    //List<Ride> findByDriverAndRideStatusNot(Driver driver, RideStatus status);
     Page<Ride> findByDriver(Driver driver, Pageable pageRequest);
+    Page<Ride> findByRideStatus(RideStatus rideStatus, Pageable pageable);
+
+    @Query("SELECT COUNT(r) FROM Ride r WHERE r.rideStatus = :status")
+    Long countByRideStatus(RideStatus status);
+
+    @Query("SELECT COALESCE(SUM(r.fare), 0) FROM Ride r WHERE r.rideStatus = :status")
+    Double sumFareByRideStatus(RideStatus status);
 }
