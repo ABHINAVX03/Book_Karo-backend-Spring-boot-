@@ -1,36 +1,35 @@
 package com.codingshuttle.project.uber.uberApp.services.impl;
 
-import com.codingshuttle.project.uber.uberApp.dto.DriverDto;
-import com.codingshuttle.project.uber.uberApp.dto.PointDto;
-import com.codingshuttle.project.uber.uberApp.dto.RideRequestDto;
-import com.codingshuttle.project.uber.uberApp.dto.RideDto;
-import com.codingshuttle.project.uber.uberApp.dto.RiderDto;
+import com.codingshuttle.project.uber.uberApp.dto.*;
 import com.codingshuttle.project.uber.uberApp.entities.Driver;
 import com.codingshuttle.project.uber.uberApp.entities.Ride;
 import com.codingshuttle.project.uber.uberApp.entities.RideRequest;
 import com.codingshuttle.project.uber.uberApp.entities.User;
+import com.codingshuttle.project.uber.uberApp.entities.enums.PaymentMethod;
 import com.codingshuttle.project.uber.uberApp.entities.enums.RideRequestStatus;
-import com.codingshuttle.project.uber.uberApp.repositories.RideRequestRepository;
 import com.codingshuttle.project.uber.uberApp.entities.enums.RideStatus;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.repositories.DriverRepository;
-import com.codingshuttle.project.uber.uberApp.utils.GeometryUtil;
-import org.locationtech.jts.geom.Point;
+import com.codingshuttle.project.uber.uberApp.repositories.RideRequestRepository;
 import com.codingshuttle.project.uber.uberApp.services.*;
+import com.codingshuttle.project.uber.uberApp.utils.GeometryUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.locationtech.jts.geom.Point;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DriverServiceImpl implements DriverService {
 
     private final RideRequestService rideRequestService;
@@ -40,22 +39,25 @@ public class DriverServiceImpl implements DriverService {
     private final ModelMapper modelMapper;
     private final PaymentService paymentService;
     private final RatingService ratingService;
+    private final EmailSenderService emailSenderService;
+
+    private static final DateTimeFormatter RECEIPT_FMT =
+            DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
 
     @Override
     @Transactional
     public RideDto acceptRide(Long rideRequestId) {
         RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
 
-        if(!rideRequest.getRideRequestStatus().equals(RideRequestStatus.PENDING)) {
-            throw new RuntimeException("RideRequest cannot be accepted, status is "+ rideRequest.getRideRequestStatus());
+        if (!rideRequest.getRideRequestStatus().equals(RideRequestStatus.PENDING)) {
+            throw new RuntimeException("RideRequest cannot be accepted, status is " + rideRequest.getRideRequestStatus());
         }
 
         Driver currentDriver = getCurrentDriver();
-        if(!currentDriver.getAvailable()) {
+        if (!currentDriver.getAvailable()) {
             throw new RuntimeException("Driver cannot accept ride due to unavailability");
         }
 
-        // Ensure this driver was among the notified (nearby) drivers for this request
         boolean isNotifiedDriver = rideRequest.getNotifiedDrivers()
                 .stream()
                 .anyMatch(d -> d.getId().equals(currentDriver.getId()));
@@ -65,7 +67,6 @@ public class DriverServiceImpl implements DriverService {
         }
 
         Driver savedDriver = updateDriverAvailability(currentDriver, false);
-
         Ride ride = rideService.createNewRide(rideRequest, savedDriver);
         return modelMapper.map(ride, RideDto.class);
     }
@@ -73,18 +74,33 @@ public class DriverServiceImpl implements DriverService {
     @Override
     public RideDto cancelRide(Long rideId) {
         Ride ride = rideService.getRideById(rideId);
-
         Driver driver = getCurrentDriver();
-        if(!driver.equals(ride.getDriver())) {
-            throw new RuntimeException("Driver cannot start a ride as he has not accepted it earlier");
-        }
 
-        if(!ride.getRideStatus().equals(RideStatus.CONFIRMED)) {
-            throw new RuntimeException("Ride cannot be cancelled, invalid status: "+ride.getRideStatus());
+        if (!driver.equals(ride.getDriver())) {
+            throw new RuntimeException("Driver cannot cancel a ride they did not accept");
+        }
+        if (!ride.getRideStatus().equals(RideStatus.CONFIRMED)) {
+            throw new RuntimeException("Ride cannot be cancelled, invalid status: " + ride.getRideStatus());
         }
 
         rideService.updateRideStatus(ride, RideStatus.CANCELLED);
         updateDriverAvailability(driver, true);
+
+        // Notify rider by email
+        try {
+            User riderUser = ride.getRider().getUser();
+            String driverName = driver.getUser() != null ? driver.getUser().getName() : "your driver";
+            emailSenderService.sendEmail(
+                    riderUser.getEmail(),
+                    "BookCar – Your ride #" + rideId + " was cancelled",
+                    String.format(
+                        "Hi %s,\n\nUnfortunately %s had to cancel your BookCar ride #%d.\n\nPlease rebook at your convenience — we will find you another driver right away.\n\nSorry for the inconvenience!\nBookCar Team",
+                        riderUser.getName(), driverName, rideId
+                    )
+            );
+        } catch (Exception e) {
+            log.warn("Could not send cancellation email for ride id={}: {}", rideId, e.getMessage());
+        }
 
         return modelMapper.map(ride, RideDto.class);
     }
@@ -94,16 +110,14 @@ public class DriverServiceImpl implements DriverService {
         Ride ride = rideService.getRideById(rideId);
         Driver driver = getCurrentDriver();
 
-        if(!driver.equals(ride.getDriver())) {
-            throw new RuntimeException("Driver cannot start a ride as he has not accepted it earlier");
+        if (!driver.equals(ride.getDriver())) {
+            throw new RuntimeException("Driver cannot start a ride they did not accept");
         }
-
-        if(!ride.getRideStatus().equals(RideStatus.CONFIRMED)) {
-            throw new RuntimeException("Ride status is not CONFIRMED hence cannot be started, status: "+ride.getRideStatus());
+        if (!ride.getRideStatus().equals(RideStatus.CONFIRMED)) {
+            throw new RuntimeException("Ride status is not CONFIRMED hence cannot be started, status: " + ride.getRideStatus());
         }
-
-        if(!otp.equals(ride.getOtp())) {
-            throw new RuntimeException("Otp is not valid, otp: "+otp);
+        if (!otp.equals(ride.getOtp())) {
+            throw new RuntimeException("OTP is not valid, otp: " + otp);
         }
 
         ride.setStartedAt(LocalDateTime.now());
@@ -121,19 +135,26 @@ public class DriverServiceImpl implements DriverService {
         Ride ride = rideService.getRideById(rideId);
         Driver driver = getCurrentDriver();
 
-        if(!driver.equals(ride.getDriver())) {
-            throw new RuntimeException("Driver cannot start a ride as he has not accepted it earlier");
+        if (!driver.equals(ride.getDriver())) {
+            throw new RuntimeException("Driver cannot end a ride they did not accept");
         }
-
-        if(!ride.getRideStatus().equals(RideStatus.ONGOING)) {
-            throw new RuntimeException("Ride status is not ONGOING hence cannot be ended, status: "+ride.getRideStatus());
+        if (!ride.getRideStatus().equals(RideStatus.ONGOING)) {
+            throw new RuntimeException("Ride status is not ONGOING hence cannot be ended, status: " + ride.getRideStatus());
         }
 
         ride.setEndedAt(LocalDateTime.now());
         Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ENDED);
         updateDriverAvailability(driver, true);
 
-        paymentService.processPayment(ride);
+        if (PaymentMethod.RAZORPAY.equals(ride.getPaymentMethod())) {
+            // For Razorpay rides: do NOT process payment here.
+            // The rider will pay via Razorpay checkout and call /riders/rides/{id}/verify-ride-payment
+            log.info("Ride id={} ended with RAZORPAY — awaiting rider payment", rideId);
+        } else {
+            // WALLET / CASH: process immediately and send receipt
+            paymentService.processPayment(savedRide);
+            sendRideReceiptEmail(savedRide);
+        }
 
         return modelMapper.map(savedRide, RideDto.class);
     }
@@ -143,12 +164,11 @@ public class DriverServiceImpl implements DriverService {
         Ride ride = rideService.getRideById(rideId);
         Driver driver = getCurrentDriver();
 
-        if(!driver.equals(ride.getDriver())) {
+        if (!driver.equals(ride.getDriver())) {
             throw new RuntimeException("Driver is not the owner of this Ride");
         }
-
-        if(!ride.getRideStatus().equals(RideStatus.ENDED)) {
-            throw new RuntimeException("Ride status is not Ended hence cannot start rating, status: "+ride.getRideStatus());
+        if (!ride.getRideStatus().equals(RideStatus.ENDED)) {
+            throw new RuntimeException("Ride status is not Ended hence cannot start rating, status: " + ride.getRideStatus());
         }
 
         return ratingService.rateRider(ride, rating);
@@ -156,8 +176,7 @@ public class DriverServiceImpl implements DriverService {
 
     @Override
     public DriverDto getMyProfile() {
-        Driver currentDriver = getCurrentDriver();
-        return modelMapper.map(currentDriver, DriverDto.class);
+        return modelMapper.map(getCurrentDriver(), DriverDto.class);
     }
 
     @Override
@@ -182,8 +201,7 @@ public class DriverServiceImpl implements DriverService {
     public RideRequestDto getIncomingRideRequest() {
         Driver currentDriver = getCurrentDriver();
         List<RideRequest> requests = rideRequestRepository
-                .findByNotifiedDriversContainingAndRideRequestStatus(
-                        currentDriver, RideRequestStatus.PENDING);
+                .findByNotifiedDriversContainingAndRideRequestStatus(currentDriver, RideRequestStatus.PENDING);
         if (requests == null || requests.isEmpty()) return null;
         return modelMapper.map(requests.get(0), RideRequestDto.class);
     }
@@ -191,10 +209,9 @@ public class DriverServiceImpl implements DriverService {
     @Override
     public Driver getCurrentDriver() {
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
         return driverRepository.findByUser(user)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver not associated with user with " +
-                "id "+user.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Driver not associated with user id=" + user.getId()));
     }
 
     @Override
@@ -208,4 +225,41 @@ public class DriverServiceImpl implements DriverService {
         return driverRepository.save(driver);
     }
 
+    // ─── Receipt Email ────────────────────────────────────────────────────────
+    private void sendRideReceiptEmail(Ride ride) {
+        try {
+            User riderUser = ride.getRider().getUser();
+            String driverName = ride.getDriver() != null && ride.getDriver().getUser() != null
+                    ? ride.getDriver().getUser().getName() : "N/A";
+            String endedAt = ride.getEndedAt() != null ? ride.getEndedAt().format(RECEIPT_FMT) : "N/A";
+
+            String body = String.format(
+                """
+                BookCar - Ride Receipt
+                ══════════════════════════════
+                
+                Ride ID   : #%d
+                Date      : %s
+                Driver    : %s
+                Payment   : %s
+                
+                ── Payment Summary ──
+                Total Fare: ₹%.2f
+                Status    : PAID ✓
+                
+                Thank you for riding with BookCar!
+                """,
+                ride.getId(), endedAt, driverName,
+                ride.getPaymentMethod(), ride.getFare()
+            );
+
+            emailSenderService.sendEmail(
+                    riderUser.getEmail(),
+                    "BookCar Ride Receipt – #" + ride.getId(),
+                    body
+            );
+        } catch (Exception e) {
+            log.warn("Could not send receipt email for ride id={}: {}", ride.getId(), e.getMessage());
+        }
+    }
 }

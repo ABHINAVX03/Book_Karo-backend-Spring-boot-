@@ -2,6 +2,7 @@ package com.codingshuttle.project.uber.uberApp.strategies;
 
 import com.codingshuttle.project.uber.uberApp.entities.enums.PaymentMethod;
 import com.codingshuttle.project.uber.uberApp.strategies.impl.CashPaymentStrategy;
+import com.codingshuttle.project.uber.uberApp.strategies.impl.RazorpayRidePaymentStrategy;
 import com.codingshuttle.project.uber.uberApp.strategies.impl.WalletPaymentStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -12,11 +13,13 @@ public class PaymentStrategyManager {
 
     private final WalletPaymentStrategy walletPaymentStrategy;
     private final CashPaymentStrategy cashPaymentStrategy;
+    private final RazorpayRidePaymentStrategy razorpayRidePaymentStrategy;
 
     public PaymentStrategy paymentStrategy(PaymentMethod paymentMethod) {
         return switch (paymentMethod) {
-            case WALLET -> walletPaymentStrategy;
-            case CASH -> cashPaymentStrategy;
+            case WALLET   -> walletPaymentStrategy;
+            case CASH     -> cashPaymentStrategy;
+            case RAZORPAY -> razorpayRidePaymentStrategy;
         };
     }
 }

@@ -4,15 +4,14 @@ import com.codingshuttle.project.uber.uberApp.dto.*;
 import com.codingshuttle.project.uber.uberApp.services.AuthService;
 import com.codingshuttle.project.uber.uberApp.services.RiderService;
 import com.codingshuttle.project.uber.uberApp.services.WalletService;
-import lombok.Getter;
+import com.codingshuttle.project.uber.uberApp.entities.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import com.codingshuttle.project.uber.uberApp.entities.User;
 import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -62,8 +61,9 @@ public class RiderController {
     }
 
     @GetMapping("/getMyRides")
-    public ResponseEntity<Page<RideDto>> getAllMyRides(@RequestParam(defaultValue = "0") Integer pageOffset,
-                                                       @RequestParam(defaultValue = "10", required = false) Integer pageSize) {
+    public ResponseEntity<Page<RideDto>> getAllMyRides(
+            @RequestParam(defaultValue = "0") Integer pageOffset,
+            @RequestParam(defaultValue = "10", required = false) Integer pageSize) {
         PageRequest pageRequest = PageRequest.of(pageOffset, pageSize,
                 Sort.by(Sort.Direction.DESC, "createdTime", "id"));
         return ResponseEntity.ok(riderService.getAllMyRides(pageRequest));
@@ -94,4 +94,19 @@ public class RiderController {
         return ResponseEntity.ok(walletService.withdrawMoneyFromMyWallet(walletAmountDto.getAmount()));
     }
 
+    // ─── Razorpay Ride Payment ────────────────────────────────────────────────
+
+    /** Step 1: Rider requests a Razorpay order for an ended ride */
+    @PostMapping("/rides/{rideId}/payment-order")
+    public ResponseEntity<RidePaymentOrderDto> createRidePaymentOrder(@PathVariable Long rideId) {
+        return ResponseEntity.ok(riderService.createRidePaymentOrder(rideId));
+    }
+
+    /** Step 2: Rider verifies Razorpay payment, completing the ride settlement */
+    @PostMapping("/rides/{rideId}/verify-ride-payment")
+    public ResponseEntity<RideDto> verifyRidePayment(
+            @PathVariable Long rideId,
+            @RequestBody WalletPaymentVerificationDto dto) {
+        return ResponseEntity.ok(riderService.verifyAndCompleteRidePayment(rideId, dto));
+    }
 }
