@@ -42,6 +42,10 @@ public class Ride {
     @ManyToOne(fetch = FetchType.LAZY)
     private Driver driver;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ride_request_id", unique = true)
+    private RideRequest rideRequest;
+
     @Enumerated(EnumType.STRING)
     private PaymentMethod paymentMethod;
 

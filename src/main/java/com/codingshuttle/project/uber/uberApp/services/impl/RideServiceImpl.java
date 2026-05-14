@@ -43,6 +43,7 @@ public class RideServiceImpl implements RideService {
         ride.setRideStatus(RideStatus.CONFIRMED);
         ride.setDriver(driver);
         ride.setOtp(rideRequest.getOtp());
+        ride.setRideRequest(rideRequest);
         ride.setId(null);
 
         rideRequestService.update(rideRequest);
