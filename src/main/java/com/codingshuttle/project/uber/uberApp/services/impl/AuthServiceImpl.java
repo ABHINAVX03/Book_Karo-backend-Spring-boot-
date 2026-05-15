@@ -77,7 +77,10 @@ public class AuthServiceImpl implements AuthService {
         mappedUser.setIsVerified(true);
         User savedUser = userRepository.save(mappedUser);
 
-        otpService.clearVerification(signupDto.getPhoneNumber());
+        // Remove OTP verification only after driver onboarding is complete 
+        // or if this is a standard rider signup.
+        // For now, let it expire naturally in 10 mins or clear it in onboardNewDriver.
+        // otpService.clearVerification(signupDto.getPhoneNumber());
 
         riderService.createNewRider(savedUser);
         walletService.createNewWallet(savedUser);
