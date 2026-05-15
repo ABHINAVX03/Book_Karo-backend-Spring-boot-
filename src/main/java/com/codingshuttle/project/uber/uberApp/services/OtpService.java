@@ -14,6 +14,7 @@ public class OtpService {
 
     private final SmsService smsService;
     private final Map<String, String> otpCache = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> verifiedPhoneNumbers = new ConcurrentHashMap<>();
 
     public void sendOtp(String phoneNumber) {
         String otp = String.format("%06d", new Random().nextInt(1000000));
@@ -39,8 +40,28 @@ public class OtpService {
         String cachedOtp = otpCache.get(phoneNumber);
         if (cachedOtp != null && cachedOtp.equals(otp)) {
             otpCache.remove(phoneNumber);
+            verifiedPhoneNumbers.put(phoneNumber, true);
+            
+            // Remove from verified list after 10 minutes
+            new Thread(() -> {
+                try {
+                    Thread.sleep(10 * 60 * 1000);
+                    verifiedPhoneNumbers.remove(phoneNumber);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }).start();
+            
             return true;
         }
         return false;
+    }
+
+    public boolean isPhoneNumberVerified(String phoneNumber) {
+        return verifiedPhoneNumbers.getOrDefault(phoneNumber, false);
+    }
+
+    public void clearVerification(String phoneNumber) {
+        verifiedPhoneNumbers.remove(phoneNumber);
     }
 }

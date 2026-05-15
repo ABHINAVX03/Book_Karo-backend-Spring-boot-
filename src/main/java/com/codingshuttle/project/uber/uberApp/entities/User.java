@@ -31,6 +31,7 @@ public class User implements UserDetails {
     private String email;
     private String phoneNumber;
     private String password;
+    private Boolean isVerified = false;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)

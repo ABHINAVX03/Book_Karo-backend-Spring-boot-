@@ -40,6 +40,7 @@ public class DriverServiceImpl implements DriverService {
     private final PaymentService paymentService;
     private final RatingService ratingService;
     private final EmailSenderService emailSenderService;
+    private final CloudinaryService cloudinaryService;
 
     private static final DateTimeFormatter RECEIPT_FMT =
             DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
@@ -54,6 +55,12 @@ public class DriverServiceImpl implements DriverService {
         }
 
         Driver currentDriver = getCurrentDriver();
+        
+        // --- Verification Restriction ---
+        if (Boolean.FALSE.equals(currentDriver.getVehicleVerified())) {
+            throw new RuntimeException("Vehicle verification pending. You cannot accept rides until approved.");
+        }
+
         if (!currentDriver.getAvailable()) {
             throw new RuntimeException("Driver cannot accept ride due to unavailability");
         }
@@ -223,13 +230,81 @@ public class DriverServiceImpl implements DriverService {
 
     @Override
     public Driver updateDriverAvailability(Driver driver, boolean available) {
+        if (available && Boolean.FALSE.equals(driver.getVehicleVerified())) {
+            throw new RuntimeException("Vehicle verification pending. You cannot go online.");
+        }
         driver.setAvailable(available);
         return driverRepository.save(driver);
     }
 
     @Override
     public Driver createNewDriver(Driver driver) {
+        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.PENDING);
+        driver.setVehicleVerified(false);
         return driverRepository.save(driver);
+    }
+
+    // --- Verification Methods Implementation ---
+
+    @Override
+    public String uploadDocument(org.springframework.web.multipart.MultipartFile file, String docType) {
+        Driver driver = getCurrentDriver();
+        String url = cloudinaryService.uploadFile(file, "drivers/" + driver.getId());
+
+        switch (docType.toLowerCase()) {
+            case "rc" -> driver.setRcUrl(url);
+            case "license" -> driver.setLicenseUrl(url);
+            case "insurance" -> driver.setInsuranceUrl(url);
+            case "profile" -> driver.setProfilePhotoUrl(url);
+            default -> throw new RuntimeException("Invalid document type: " + docType);
+        }
+        
+        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.PENDING);
+        driverRepository.save(driver);
+        return url;
+    }
+
+    @Override
+    public DriverVerificationDto getDriverVerificationDetails(Long driverId) {
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
+        return modelMapper.map(driver, DriverVerificationDto.class);
+    }
+
+    @Override
+    public Page<DriverVerificationDto> getPendingDrivers(PageRequest pageRequest) {
+        return driverRepository.findByVerificationStatus(
+                com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.PENDING, 
+                pageRequest
+        ).map(driver -> modelMapper.map(driver, DriverVerificationDto.class));
+    }
+
+    @Override
+    @Transactional
+    public void approveDriver(Long driverId) {
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
+        
+        driver.setVehicleVerified(true);
+        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.APPROVED);
+        driver.setRejectionReason(null);
+        driverRepository.save(driver);
+        
+        log.info("Driver id={} approved by admin", driverId);
+    }
+
+    @Override
+    @Transactional
+    public void rejectDriver(Long driverId, String reason) {
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
+        
+        driver.setVehicleVerified(false);
+        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.REJECTED);
+        driver.setRejectionReason(reason);
+        driverRepository.save(driver);
+        
+        log.info("Driver id={} rejected by admin. Reason: {}", driverId, reason);
     }
 
     // ─── Receipt Email ────────────────────────────────────────────────────────

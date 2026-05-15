@@ -7,4 +7,5 @@ import lombok.Data;
 public class OnboardDriverDto {
     private String vehicleId;
     private VehicleType vehicleType;
+    private String phoneNumber;
 }

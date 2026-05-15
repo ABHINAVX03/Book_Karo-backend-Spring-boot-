@@ -14,7 +14,7 @@ public interface AuthService {
 
     UserDto updateProfile(Long userId, UpdateProfileDto dto);
 
-    DriverDto onboardNewDriver(Long userId, String vehicleId, VehicleType vehicleType);
+    DriverDto onboardNewDriver(Long userId, String vehicleId, VehicleType vehicleType, String phoneNumber);
 
     String refreshToken(String refreshToken);
 

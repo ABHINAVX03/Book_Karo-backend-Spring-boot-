@@ -43,6 +43,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
+    private final com.codingshuttle.project.uber.uberApp.services.OtpService otpService;
 
     @Override
     public String[] login(String email, String password) {
@@ -65,10 +66,18 @@ public class AuthServiceImpl implements AuthService {
         if (user != null)
             throw new RuntimeConflictException("Cannot signup, User already exists with email " + signupDto.getEmail());
 
+        // Check if phone number is verified
+        if (!otpService.isPhoneNumberVerified(signupDto.getPhoneNumber())) {
+            throw new RuntimeConflictException("Phone number " + signupDto.getPhoneNumber() + " is not verified. Verification is mandatory.");
+        }
+
         User mappedUser = modelMapper.map(signupDto, User.class);
         mappedUser.setRoles(Set.of(Role.RIDER));
         mappedUser.setPassword(passwordEncoder.encode(mappedUser.getPassword()));
+        mappedUser.setIsVerified(true);
         User savedUser = userRepository.save(mappedUser);
+
+        otpService.clearVerification(signupDto.getPhoneNumber());
 
         riderService.createNewRider(savedUser);
         walletService.createNewWallet(savedUser);
@@ -98,7 +107,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public DriverDto onboardNewDriver(Long userId, String vehicleId, VehicleType vehicleType) {
+    public DriverDto onboardNewDriver(Long userId, String vehicleId, VehicleType vehicleType, String phoneNumber) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null
                 || !authentication.isAuthenticated()
@@ -109,11 +118,20 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedAccessException("You can only complete vehicle registration for your own account.");
         }
 
+        // Check if phone number is verified
+        if (!otpService.isPhoneNumberVerified(phoneNumber)) {
+            throw new RuntimeConflictException("Phone number " + phoneNumber + " is not verified. Driver activation requires verification.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
 
         if (user.getRoles().contains(DRIVER))
             throw new RuntimeConflictException("User with id " + userId + " is already a Driver");
+
+        // Update user's phone number and mark as verified
+        user.setPhoneNumber(phoneNumber);
+        user.setIsVerified(true);
 
         Driver createDriver = Driver.builder()
                 .user(user)
@@ -127,6 +145,8 @@ public class AuthServiceImpl implements AuthService {
         // Just add the DRIVER role to the existing set.
         user.getRoles().add(DRIVER);
         userRepository.save(user);
+
+        otpService.clearVerification(phoneNumber);
 
         Driver savedDriver = driverService.createNewDriver(createDriver);
         return modelMapper.map(savedDriver, DriverDto.class);

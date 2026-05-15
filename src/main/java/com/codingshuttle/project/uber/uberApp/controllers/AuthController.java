@@ -40,7 +40,8 @@ public class AuthController {
     @PostMapping("/onBoardNewDriver/{userId}")
     ResponseEntity<DriverDto> onBoardNewDriver(@PathVariable Long userId, @RequestBody OnboardDriverDto onboardDriverDto) {
         return new ResponseEntity<>(authService.onboardNewDriver(userId,
-                onboardDriverDto.getVehicleId(), onboardDriverDto.getVehicleType()), HttpStatus.CREATED);
+                onboardDriverDto.getVehicleId(), onboardDriverDto.getVehicleType(), 
+                onboardDriverDto.getPhoneNumber()), HttpStatus.CREATED);
     }
 
     @PostMapping("/send-otp")

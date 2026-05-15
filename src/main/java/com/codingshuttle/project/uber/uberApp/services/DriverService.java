@@ -34,4 +34,15 @@ public interface DriverService {
     Driver updateDriverAvailability(Driver driver, boolean available);
 
     Driver createNewDriver(Driver driver);
+
+    // --- Verification Methods ---
+    String uploadDocument(org.springframework.web.multipart.MultipartFile file, String docType);
+
+    com.codingshuttle.project.uber.uberApp.dto.DriverVerificationDto getDriverVerificationDetails(Long driverId);
+
+    org.springframework.data.domain.Page<com.codingshuttle.project.uber.uberApp.dto.DriverVerificationDto> getPendingDrivers(org.springframework.data.domain.PageRequest pageRequest);
+
+    void approveDriver(Long driverId);
+
+    void rejectDriver(Long driverId, String reason);
 }

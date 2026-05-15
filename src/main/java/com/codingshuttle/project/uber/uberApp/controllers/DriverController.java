@@ -97,4 +97,26 @@ public class DriverController {
     public ResponseEntity<WalletDto> withdrawMoneyFromWallet(@RequestBody WalletAmountDto walletAmountDto) {
         return ResponseEntity.ok(walletService.withdrawMoneyFromMyWallet(walletAmountDto.getAmount()));
     }
+
+    // --- Verification Endpoints ---
+
+    @PostMapping("/upload/rc")
+    public ResponseEntity<String> uploadRc(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(driverService.uploadDocument(file, "rc"));
+    }
+
+    @PostMapping("/upload/license")
+    public ResponseEntity<String> uploadLicense(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(driverService.uploadDocument(file, "license"));
+    }
+
+    @PostMapping("/upload/insurance")
+    public ResponseEntity<String> uploadInsurance(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(driverService.uploadDocument(file, "insurance"));
+    }
+
+    @PostMapping("/upload/profile-photo")
+    public ResponseEntity<String> uploadProfilePhoto(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(driverService.uploadDocument(file, "profile"));
+    }
 }
