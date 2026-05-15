@@ -27,7 +27,11 @@ public class JWTService {
                 .claim("email", user.getEmail())
                 .claim("roles", user.getRoles().toString())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 1000*60*10))
+                // FIX: Extended from 10 minutes to 60 minutes.
+                // The 10-minute window caused silent auth failures on the driver panel
+                // (which polls every 2 seconds) and on the rider waiting screen,
+                // both of which can be open for much longer than 10 minutes.
+                .expiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60))
                 .signWith(getSecretKey())
                 .compact();
     }
@@ -36,7 +40,7 @@ public class JWTService {
         return Jwts.builder()
                 .subject(user.getId().toString())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 1000L *60*60*24*30*6))
+                .expiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 30 * 6))
                 .signWith(getSecretKey())
                 .compact();
     }
@@ -49,6 +53,4 @@ public class JWTService {
                 .getPayload();
         return Long.valueOf(claims.getSubject());
     }
-
-
 }

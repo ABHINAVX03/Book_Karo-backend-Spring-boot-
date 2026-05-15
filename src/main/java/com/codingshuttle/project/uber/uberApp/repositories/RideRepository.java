@@ -5,23 +5,26 @@ import com.codingshuttle.project.uber.uberApp.entities.Ride;
 import com.codingshuttle.project.uber.uberApp.entities.Rider;
 import com.codingshuttle.project.uber.uberApp.entities.enums.RideStatus;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RideRepository extends JpaRepository<Ride, Long> {
-    Page<Ride> findByRider(Rider rider, Pageable pageRequest);
-    Page<Ride> findByDriver(Driver driver, Pageable pageRequest);
-    Page<Ride> findByRideStatus(RideStatus rideStatus, Pageable pageable);
 
-    @Query("SELECT COUNT(r) FROM Ride r WHERE r.rideStatus = :status")
-    Long countByRideStatus(RideStatus status);
+    Page<Ride> findByRider(Rider rider, Pageable pageable);
 
-    @Query("SELECT COALESCE(SUM(r.fare), 0) FROM Ride r WHERE r.rideStatus = :status")
-    Double sumFareByRideStatus(RideStatus status);
+    Page<Ride> findByDriver(Driver driver, Pageable pageable);
+
+    /**
+     * NEW — for the GET /riders/currentRide endpoint.
+     *
+     * Returns the most recent CONFIRMED or ONGOING ride for a rider.
+     * This is used by BookRidePage to reliably find the accepted ride
+     * without paging through all historical rides.
+     */
+    Optional<Ride> findTopByRiderAndRideStatusInOrderByIdDesc(Rider rider, List<RideStatus> statuses);
 }

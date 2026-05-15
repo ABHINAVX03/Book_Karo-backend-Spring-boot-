@@ -6,8 +6,6 @@ import com.codingshuttle.project.uber.uberApp.entities.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
-import java.util.List;
-
 public interface RiderService {
 
     RideRequestDto estimateFare(RideRequestDto rideRequestDto);
@@ -19,6 +17,14 @@ public interface RiderService {
     Page<RideDto> getAllMyRides(PageRequest pageRequest);
     Rider createNewRider(User user);
     Rider getCurrentRider();
+
+    /**
+     * NEW — returns the rider's most recent CONFIRMED or ONGOING ride,
+     * or null if none exists. Used by GET /riders/currentRide to give
+     * the frontend a reliable single-item lookup instead of scanning
+     * through paginated ride history.
+     */
+    RideDto getCurrentActiveRide();
 
     // Razorpay ride payment
     RidePaymentOrderDto createRidePaymentOrder(Long rideId);

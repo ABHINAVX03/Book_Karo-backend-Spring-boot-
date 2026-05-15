@@ -69,6 +69,24 @@ public class RiderController {
         return ResponseEntity.ok(riderService.getAllMyRides(pageRequest));
     }
 
+    /**
+     * NEW ENDPOINT — FIX for BUG-07.
+     *
+     * Returns the rider's most recent CONFIRMED or ONGOING ride.
+     * This replaces the unreliable "search through first 10 rides" approach
+     * in BookRidePage.jsx and ensures the rider sees their active ride
+     * even if they have many past rides. Returns 204 No Content if no
+     * active ride exists.
+     */
+    @GetMapping("/currentRide")
+    public ResponseEntity<RideDto> getCurrentRide() {
+        RideDto ride = riderService.getCurrentActiveRide();
+        if (ride == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(ride);
+    }
+
     @GetMapping("/wallet")
     public ResponseEntity<WalletDto> getMyWallet() {
         return ResponseEntity.ok(walletService.getMyWallet());
@@ -93,8 +111,6 @@ public class RiderController {
     public ResponseEntity<WalletDto> withdrawMoneyFromWallet(@RequestBody WalletAmountDto walletAmountDto) {
         return ResponseEntity.ok(walletService.withdrawMoneyFromMyWallet(walletAmountDto.getAmount()));
     }
-
-    // ─── Razorpay Ride Payment ────────────────────────────────────────────────
 
     /** Step 1: Rider requests a Razorpay order for an ended ride */
     @PostMapping("/rides/{rideId}/payment-order")

@@ -30,11 +30,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private HandlerExceptionResolver handlerExceptionResolver;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
         try {
             final String requestTokenHeader = request.getHeader("Authorization");
-            if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer")) {
+
+            // FIX: Added space after "Bearer" — previously "Bearer" without space would
+            // accept malformed headers like "BearerXXX" and then fail on the split.
+            if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -56,5 +60,4 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             handlerExceptionResolver.resolveException(request, response, null, ex);
         }
     }
-
 }

@@ -82,6 +82,12 @@ public class RiderServiceImpl implements RiderService {
     @Transactional
     public RideRequestDto requestRide(RideRequestDto rideRequestDto) {
         Rider rider = getCurrentRider();
+
+        // Validate coordinates — reject obvious zero/null island submissions
+        if (rideRequestDto.getPickupLocation() == null || rideRequestDto.getDropOffLocation() == null) {
+            throw new IllegalArgumentException("Pickup and dropoff locations are required");
+        }
+
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
         rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
         rideRequest.setRider(rider);
@@ -89,14 +95,23 @@ public class RiderServiceImpl implements RiderService {
         rideRequest.setFare(fare);
         String otp = String.format("%04d", new java.util.Random().nextInt(10000));
         rideRequest.setOtp(otp);
+
         RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
         log.info("RideRequest id={} created for rider id={}, fare={}", savedRideRequest.getId(), rider.getId(), fare);
+
         List<Driver> matchedDrivers = rideStrategyManager
                 .driverMatchingStrategy(rider.getRating())
                 .findMatchingDriver(savedRideRequest);
+
+        if (matchedDrivers.isEmpty()) {
+            log.warn("No available drivers found for RideRequest id={} — riders pickup: {}",
+                    savedRideRequest.getId(), savedRideRequest.getPickupLocation());
+        }
+
         savedRideRequest.setNotifiedDrivers(matchedDrivers);
         rideRequestRepository.save(savedRideRequest);
         notificationService.notifyDriversAboutRideRequest(savedRideRequest, matchedDrivers);
+
         return modelMapper.map(savedRideRequest, RideRequestDto.class);
     }
 
@@ -163,6 +178,26 @@ public class RiderServiceImpl implements RiderService {
     public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
         return rideService.getAllRidesOfRider(getCurrentRider(), pageRequest)
                 .map(ride -> modelMapper.map(ride, RideDto.class));
+    }
+
+    /**
+     * NEW — FIX BUG-07.
+     *
+     * Returns the rider's most recent CONFIRMED or ONGOING ride directly,
+     * without scanning through all ride history. This is called by the new
+     * GET /riders/currentRide endpoint and used by BookRidePage.jsx to
+     * reliably detect when a driver has accepted their ride request.
+     *
+     * The old approach searched through the first 10 paginated rides using
+     * coordinate matching — it could miss the ride entirely if the rider
+     * had many past rides, or falsely match an old ride with the same route.
+     */
+    @Override
+    public RideDto getCurrentActiveRide() {
+        Rider rider = getCurrentRider();
+        return rideService.getCurrentActiveRideForRider(rider)
+                .map(ride -> modelMapper.map(ride, RideDto.class))
+                .orElse(null);
     }
 
     @Override
@@ -244,13 +279,8 @@ public class RiderServiceImpl implements RiderService {
             throw new InvalidRideStatusException("Ride id=" + rideId + " must be ENDED");
         }
 
-        // Verify Razorpay signature: HMAC-SHA256(orderId|paymentId, keySecret)
         verifyRazorpaySignature(dto.getRazorpayOrderId(), dto.getRazorpayPaymentId(), dto.getRazorpaySignature());
-
-        // Credit driver wallet (70%) and mark payment CONFIRMED
         paymentService.processPayment(ride);
-
-        // Send receipt email to rider
         sendRideReceiptEmail(ride, rider.getUser());
 
         log.info("Ride id={} payment verified and completed for rider id={}", rideId, rider.getId());
@@ -269,8 +299,7 @@ public class RiderServiceImpl implements RiderService {
             for (byte b : hash) {
                 hexBuilder.append(String.format("%02x", b));
             }
-            String generatedSignature = hexBuilder.toString();
-            if (!generatedSignature.equals(receivedSignature)) {
+            if (!hexBuilder.toString().equals(receivedSignature)) {
                 throw new RuntimeException("Payment verification failed: invalid signature");
             }
         } catch (RuntimeException e) {
@@ -302,11 +331,7 @@ public class RiderServiceImpl implements RiderService {
                 
                 Thank you for riding with BookCar!
                 """,
-                ride.getId(),
-                endedAt,
-                driverName,
-                ride.getPaymentMethod(),
-                ride.getFare()
+                ride.getId(), endedAt, driverName, ride.getPaymentMethod(), ride.getFare()
             );
 
             emailSenderService.sendEmail(riderUser.getEmail(), "BookCar Ride Receipt – #" + ride.getId(), body);

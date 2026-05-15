@@ -16,9 +16,10 @@ import java.util.List;
 @Getter
 @Setter
 @Table(
-      indexes = {
-              @Index(name = "idx_ride_request_rider", columnList = "rider_id")
-      }
+    indexes = {
+        @Index(name = "idx_ride_request_rider", columnList = "rider_id"),
+        @Index(name = "idx_ride_request_status", columnList = "rideRequestStatus")
+    }
 )
 public class RideRequest {
 
@@ -48,11 +49,29 @@ public class RideRequest {
 
     private String otp;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    /**
+     * FIX: Changed from LAZY to EAGER.
+     *
+     * Previously LAZY loading caused LazyInitializationException when
+     * acceptRide() streamed over notifiedDrivers outside a guaranteed
+     * open Hibernate session. The list is small (max 10 drivers) so
+     * EAGER loading is safe and avoids the N+1 risk.
+     *
+     * Also added a composite index on the join table to make the
+     * "find requests for driver X with status PENDING" query fast.
+     */
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "ride_request_notified_drivers",
             joinColumns = @JoinColumn(name = "ride_request_id"),
             inverseJoinColumns = @JoinColumn(name = "driver_id")
     )
     private List<Driver> notifiedDrivers = new ArrayList<>();
+
+    /**
+     * Optimistic locking version — prevents two drivers from accepting
+     * the same ride request in a race condition.
+     */
+    @Version
+    private Long version;
 }

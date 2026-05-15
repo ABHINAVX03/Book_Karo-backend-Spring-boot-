@@ -1,6 +1,5 @@
 package com.codingshuttle.project.uber.uberApp.services.impl;
 
-import com.codingshuttle.project.uber.uberApp.dto.RideRequestDto;
 import com.codingshuttle.project.uber.uberApp.entities.Driver;
 import com.codingshuttle.project.uber.uberApp.entities.Ride;
 import com.codingshuttle.project.uber.uberApp.entities.RideRequest;
@@ -15,9 +14,10 @@ import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 @Service
@@ -31,9 +31,8 @@ public class RideServiceImpl implements RideService {
     @Override
     public Ride getRideById(Long rideId) {
         return rideRepository.findById(rideId)
-                .orElseThrow(() -> new ResourceNotFoundException("Ride not found with id: "+rideId));
+                .orElseThrow(() -> new ResourceNotFoundException("Ride not found with id: " + rideId));
     }
-
 
     @Override
     public Ride createNewRide(RideRequest rideRequest, Driver driver) {
@@ -43,7 +42,6 @@ public class RideServiceImpl implements RideService {
         ride.setRideStatus(RideStatus.CONFIRMED);
         ride.setDriver(driver);
         ride.setOtp(rideRequest.getOtp());
-        ride.setRideRequest(rideRequest);
         ride.setId(null);
 
         rideRequestService.update(rideRequest);
@@ -66,9 +64,26 @@ public class RideServiceImpl implements RideService {
         return rideRepository.findByDriver(driver, pageRequest);
     }
 
+    /**
+     * NEW — FIX BUG-07.
+     *
+     * Returns the most recent CONFIRMED or ONGOING ride for the given rider.
+     * CONFIRMED  = driver accepted, ride hasn't started yet (rider sees OTP).
+     * ONGOING    = ride has started, driver clicked Start Ride.
+     *
+     * Called by RiderServiceImpl.getCurrentActiveRide() → GET /riders/currentRide.
+     */
+    @Override
+    public Optional<Ride> getCurrentActiveRideForRider(Rider rider) {
+        return rideRepository.findTopByRiderAndRideStatusInOrderByIdDesc(
+                rider,
+                List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
+        );
+    }
+
     private String generateRandomOTP() {
         Random random = new Random();
-        int otpInt = random.nextInt(10000);  //0 to 9999
+        int otpInt = random.nextInt(10000);
         return String.format("%04d", otpInt);
     }
 }

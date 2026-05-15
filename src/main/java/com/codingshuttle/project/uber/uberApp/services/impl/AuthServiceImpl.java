@@ -61,15 +61,14 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public UserDto signup(SignupDto signupDto) {
         User user = userRepository.findByEmail(signupDto.getEmail()).orElse(null);
-        if(user != null)
-                throw new RuntimeConflictException("Cannot signup, User already exists with email "+signupDto.getEmail());
+        if (user != null)
+            throw new RuntimeConflictException("Cannot signup, User already exists with email " + signupDto.getEmail());
 
         User mappedUser = modelMapper.map(signupDto, User.class);
         mappedUser.setRoles(Set.of(Role.RIDER));
         mappedUser.setPassword(passwordEncoder.encode(mappedUser.getPassword()));
         User savedUser = userRepository.save(mappedUser);
 
-//        create user related entities
         riderService.createNewRider(savedUser);
         walletService.createNewWallet(savedUser);
 
@@ -110,10 +109,10 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id "+userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
 
-        if(user.getRoles().contains(DRIVER))
-            throw new RuntimeConflictException("User with id "+userId+" is already a Driver");
+        if (user.getRoles().contains(DRIVER))
+            throw new RuntimeConflictException("User with id " + userId + " is already a Driver");
 
         Driver createDriver = Driver.builder()
                 .user(user)
@@ -122,9 +121,11 @@ public class AuthServiceImpl implements AuthService {
                 .available(true)
                 .build();
 
-        user.getRoles().remove(Role.RIDER);  // Remove RIDER role first
-        user.getRoles().add(DRIVER);  // Add only DRIVER role
+        // FIX: Do NOT remove RIDER role — a driver-user should be able to book rides too.
+        // Just add the DRIVER role to the existing set.
+        user.getRoles().add(DRIVER);
         userRepository.save(user);
+
         Driver savedDriver = driverService.createNewDriver(createDriver);
         return modelMapper.map(savedDriver, DriverDto.class);
     }
@@ -132,8 +133,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public String refreshToken(String refreshToken) {
         Long userId = jwtService.getUserIdFromToken(refreshToken);
-        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found " +
-                "with id: "+userId));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
         return jwtService.generateAccessToken(user);
     }
@@ -145,14 +146,3 @@ public class AuthServiceImpl implements AuthService {
         return modelMapper.map(user, UserDto.class);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
