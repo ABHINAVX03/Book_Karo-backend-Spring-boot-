@@ -54,4 +54,16 @@ public class AdminController {
         driverService.rejectDriver(id, reason);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/drivers/{id}/block")
+    public ResponseEntity<Void> blockDriver(@PathVariable Long id) {
+        driverService.blockDriver(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/drivers/{id}/unblock")
+    public ResponseEntity<Void> unblockDriver(@PathVariable Long id) {
+        driverService.unblockDriver(id);
+        return ResponseEntity.ok().build();
+    }
 }

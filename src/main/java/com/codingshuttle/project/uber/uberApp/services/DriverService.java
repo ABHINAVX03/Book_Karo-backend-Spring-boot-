@@ -49,4 +49,8 @@ public interface DriverService {
     void approveDriver(Long driverId);
 
     void rejectDriver(Long driverId, String reason);
+
+    void blockDriver(Long driverId);
+
+    void unblockDriver(Long driverId);
 }

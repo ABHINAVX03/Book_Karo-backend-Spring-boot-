@@ -50,6 +50,8 @@ public class Driver {
     private String insuranceUrl;
     private String profilePhotoUrl;
 
+    private Boolean blocked = false;
+
     @Column(columnDefinition = "Geometry(Point,4326)")
     private Point currentLocation;
 }

@@ -21,4 +21,6 @@ public class DriverVerificationDto {
     private String insuranceUrl;
     private String profilePhotoUrl;
     private String rejectionReason;
+    private Boolean available;
+    private Boolean blocked;
 }

@@ -239,8 +239,32 @@ public class DriverServiceImpl implements DriverService {
         if (available && Boolean.FALSE.equals(driver.getVehicleVerified())) {
             throw new RuntimeException("Vehicle verification pending. You cannot go online.");
         }
+        if (available && Boolean.TRUE.equals(driver.getBlocked())) {
+            throw new RuntimeException("Your account is blocked by admin. Please contact support.");
+        }
         driver.setAvailable(available);
         return driverRepository.save(driver);
+    }
+
+    @Override
+    @Transactional
+    public void blockDriver(Long driverId) {
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
+        driver.setBlocked(true);
+        driver.setAvailable(false); // Force offline
+        driverRepository.save(driver);
+        log.info("Driver id={} has been BLOCKED by admin", driverId);
+    }
+
+    @Override
+    @Transactional
+    public void unblockDriver(Long driverId) {
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
+        driver.setBlocked(false);
+        driverRepository.save(driver);
+        log.info("Driver id={} has been UNBLOCKED by admin", driverId);
     }
 
     @Override
