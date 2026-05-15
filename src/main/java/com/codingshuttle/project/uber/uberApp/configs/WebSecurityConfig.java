@@ -31,6 +31,8 @@ public class WebSecurityConfig {
             "/auth/signup",
             "/auth/login",
             "/auth/refresh",
+            "/auth/send-otp",
+            "/auth/verify-otp"
     };
 
     @Value("${app.cors.allowed-origins:http://localhost,http://localhost:3000,http://localhost:5173,http://localhost:4173,https://book-car-frontend.vercel.app}")
