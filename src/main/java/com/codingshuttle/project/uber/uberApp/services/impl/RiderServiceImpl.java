@@ -20,8 +20,10 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -195,9 +197,27 @@ public class RiderServiceImpl implements RiderService {
     @Override
     public RideDto getCurrentActiveRide() {
         Rider rider = getCurrentRider();
-        return rideService.getCurrentActiveRideForRider(rider)
-                .map(ride -> modelMapper.map(ride, RideDto.class))
-                .orElse(null);
+
+        // 1. Try to find CONFIRMED or ONGOING ride
+        Optional<Ride> activeRide = rideService.getCurrentActiveRideForRider(rider);
+        if (activeRide.isPresent()) {
+            return modelMapper.map(activeRide.get(), RideDto.class);
+        }
+
+        // 2. If no CONFIRMED/ONGOING, check for the most recent ENDED ride that hasn't been rated
+        // We use page 0, size 1, sorted by ID desc to get the very last ride
+        Page<Ride> lastRides = rideService.getAllRidesOfRider(rider, PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "id")));
+        if (!lastRides.isEmpty()) {
+            Ride lastRide = lastRides.getContent().get(0);
+            // If the last ride is ENDED and rider hasn't rated the driver yet, it's still "active" for the UI
+            if (RideStatus.ENDED.equals(lastRide.getRideStatus())) {
+                if (ratingService.getDriverRating(lastRide) == null) {
+                    return modelMapper.map(lastRide, RideDto.class);
+                }
+            }
+        }
+
+        return null;
     }
 
     @Override

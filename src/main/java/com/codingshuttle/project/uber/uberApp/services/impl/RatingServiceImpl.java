@@ -82,6 +82,13 @@ public class RatingServiceImpl implements RatingService {
     }
 
     @Override
+    public Integer getDriverRating(Ride ride) {
+        return ratingRepository.findByRide(ride)
+                .map(Rating::getDriverRating)
+                .orElse(null);
+    }
+
+    @Override
     public void createNewRating(Ride ride) {
         Rating rating = Rating.builder()
                 .rider(ride.getRider())

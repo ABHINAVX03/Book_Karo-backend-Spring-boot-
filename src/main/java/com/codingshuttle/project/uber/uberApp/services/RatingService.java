@@ -14,4 +14,5 @@ public interface RatingService {
     void createNewRating(Ride ride);
 
     Integer getRiderRating(Ride ride);
+    Integer getDriverRating(Ride ride);
 }
