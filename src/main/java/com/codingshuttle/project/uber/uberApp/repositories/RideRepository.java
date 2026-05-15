@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,7 +32,7 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
 
     /** Used by AdminController.getRevenueStats() — total fare collected */
     @Query("SELECT COALESCE(SUM(r.fare), 0) FROM Ride r WHERE r.rideStatus = :status")
-    Double sumFareByRideStatus(RideStatus status);
+    BigDecimal sumFareByRideStatus(RideStatus status);
 
     // ── New method added by bug-fix (BUG-07) ─────────────────────────────────
 

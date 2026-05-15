@@ -35,12 +35,12 @@ public class WalletTransaction {
     @Column(length = 50)
     private TransactionMethod transactionMethod;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Ride ride;
 
     private String transactionId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Wallet wallet;
 
     @CreationTimestamp

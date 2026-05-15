@@ -19,13 +19,13 @@ public class Rating {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     private Ride ride;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Rider rider;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Driver driver;
 
     private Integer driverRating; //rating for the driver
