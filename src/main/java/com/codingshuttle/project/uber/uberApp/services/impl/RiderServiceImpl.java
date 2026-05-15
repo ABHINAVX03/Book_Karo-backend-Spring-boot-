@@ -243,14 +243,23 @@ public class RiderServiceImpl implements RiderService {
         String credentials = Base64.getEncoder()
                 .encodeToString((razorpayKeyId + ":" + razorpayKeySecret).getBytes(StandardCharsets.UTF_8));
 
-        @SuppressWarnings("rawtypes")
-        Map orderResponse = razorpayRestClient.post()
-                .uri("/orders")
-                .header(HttpHeaders.AUTHORIZATION, "Basic " + credentials)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("amount", amountInPaise, "currency", "INR", "receipt", "ride_" + rideId))
-                .retrieve()
-                .body(Map.class);
+        Map orderResponse;
+        try {
+            orderResponse = razorpayRestClient.post()
+                    .uri("/orders")
+                    .header(HttpHeaders.AUTHORIZATION, "Basic " + credentials)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("amount", amountInPaise, "currency", "INR", "receipt", "ride_" + rideId))
+                    .retrieve()
+                    .onStatus(status -> status.isError(), (request, response) -> {
+                        log.error("Razorpay order creation failed: {} {}", response.getStatusCode(), response.getStatusText());
+                        throw new RuntimeException("Razorpay error: " + response.getStatusCode());
+                    })
+                    .body(Map.class);
+        } catch (Exception e) {
+            log.error("Could not create Razorpay order for ride id={}: {}", rideId, e.getMessage());
+            throw new RuntimeException("Could not initiate Razorpay payment: " + e.getMessage());
+        }
 
         String razorpayOrderId = (String) orderResponse.get("id");
         log.info("Razorpay order {} created for ride id={}, amount={}paise", razorpayOrderId, rideId, amountInPaise);
