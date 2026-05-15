@@ -23,9 +23,15 @@ public class CloudinaryConfig {
     @Bean
     public Cloudinary cloudinary() {
         Map<String, String> config = new HashMap<>();
-        config.put("cloud_name", cloudName);
-        config.put("api_key", apiKey);
-        config.put("api_secret", apiSecret);
+        config.put("cloud_name", clean(cloudName));
+        config.put("api_key", clean(apiKey));
+        config.put("api_secret", clean(apiSecret));
         return new Cloudinary(config);
+    }
+
+    private String clean(String value) {
+        if (value == null) return "";
+        // Remove quotes if present and trim whitespace
+        return value.trim().replaceAll("^\"|\"$", "");
     }
 }
