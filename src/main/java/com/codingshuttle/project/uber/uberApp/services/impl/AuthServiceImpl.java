@@ -11,6 +11,7 @@ import com.codingshuttle.project.uber.uberApp.entities.enums.VehicleType;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.exceptions.RuntimeConflictException;
 import com.codingshuttle.project.uber.uberApp.exceptions.UnauthorizedAccessException;
+import com.codingshuttle.project.uber.uberApp.repositories.DriverRepository;
 import com.codingshuttle.project.uber.uberApp.repositories.UserRepository;
 import com.codingshuttle.project.uber.uberApp.security.JWTService;
 import com.codingshuttle.project.uber.uberApp.services.AuthService;
@@ -36,6 +37,7 @@ import static com.codingshuttle.project.uber.uberApp.entities.enums.Role.DRIVER;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final DriverRepository driverRepository;
     private final ModelMapper modelMapper;
     private final RiderService riderService;
     private final WalletService walletService;
