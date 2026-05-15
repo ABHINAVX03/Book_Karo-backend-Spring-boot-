@@ -15,4 +15,12 @@ public class DriverDto {
     private Boolean available;
     private String vehicleId;
     private VehicleType vehicleType;
+    private Boolean vehicleVerified;
+    private Boolean blocked;
+    private com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus verificationStatus;
+    private String rcUrl;
+    private String licenseUrl;
+    private String insuranceUrl;
+    private String profilePhotoUrl;
+    private String rejectionReason;
 }

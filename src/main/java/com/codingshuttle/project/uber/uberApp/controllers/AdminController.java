@@ -19,6 +19,15 @@ import java.util.Map;
 public class AdminController {
 
     private final DriverService driverService;
+    private final com.codingshuttle.project.uber.uberApp.services.AdminService adminService;
+
+    @GetMapping("/revenue")
+    public ResponseEntity<com.codingshuttle.project.uber.uberApp.dto.AdminRevenueDto> getRevenueStats(
+            @RequestParam(defaultValue = "0") Integer pageOffset,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        PageRequest pageRequest = PageRequest.of(pageOffset, pageSize, Sort.by("id").descending());
+        return ResponseEntity.ok(adminService.getRevenueStats(pageRequest));
+    }
 
     @GetMapping("/drivers")
     public ResponseEntity<Page<DriverVerificationDto>> getAllDriversByStatus(
