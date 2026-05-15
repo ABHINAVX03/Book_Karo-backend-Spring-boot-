@@ -12,6 +12,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CloudinaryServiceImpl implements CloudinaryService {
 
     private final Cloudinary cloudinary;
@@ -19,11 +20,18 @@ public class CloudinaryServiceImpl implements CloudinaryService {
     @Override
     public String uploadFile(MultipartFile file, String folderName) {
         try {
+            if (file.isEmpty()) throw new RuntimeException("File is empty");
+            
+            log.info("Attempting to upload file to Cloudinary folder: {}", folderName);
             Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
                     ObjectUtils.asMap("folder", "uberApp/" + folderName));
-            return (String) uploadResult.get("secure_url");
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to upload file to Cloudinary: " + e.getMessage());
+            
+            String url = (String) uploadResult.get("secure_url");
+            log.info("File uploaded successfully: {}", url);
+            return url;
+        } catch (Exception e) {
+            log.error("Cloudinary upload failed for folder {}: {}", folderName, e.getMessage());
+            throw new RuntimeException("Cloudinary upload failed: " + e.getMessage());
         }
     }
 }
