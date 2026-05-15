@@ -255,7 +255,7 @@ public class DriverServiceImpl implements DriverService {
             case "rc" -> driver.setRcUrl(url);
             case "license" -> driver.setLicenseUrl(url);
             case "insurance" -> driver.setInsuranceUrl(url);
-            case "profile" -> driver.setProfilePhotoUrl(url);
+            case "profile", "profile-photo" -> driver.setProfilePhotoUrl(url);
             default -> throw new RuntimeException("Invalid document type: " + docType);
         }
         
