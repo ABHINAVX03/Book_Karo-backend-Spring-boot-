@@ -42,6 +42,8 @@ public interface DriverService {
 
     com.codingshuttle.project.uber.uberApp.dto.DriverVerificationDto getDriverVerificationDetails(Long driverId);
 
+    void submitVerification();
+
     org.springframework.data.domain.Page<com.codingshuttle.project.uber.uberApp.dto.DriverVerificationDto> getPendingDrivers(org.springframework.data.domain.PageRequest pageRequest);
 
     org.springframework.data.domain.Page<com.codingshuttle.project.uber.uberApp.dto.DriverVerificationDto> getAllDriversByStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status, org.springframework.data.domain.PageRequest pageRequest);

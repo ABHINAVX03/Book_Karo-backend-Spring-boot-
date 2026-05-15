@@ -277,6 +277,7 @@ public class DriverServiceImpl implements DriverService {
     // --- Verification Methods Implementation ---
 
     @Override
+    @Transactional
     public String uploadDocument(org.springframework.web.multipart.MultipartFile file, String docType) {
         Driver driver = getCurrentDriver();
         String url = cloudinaryService.uploadFile(file, "drivers/" + driver.getId());
@@ -289,9 +290,20 @@ public class DriverServiceImpl implements DriverService {
             default -> throw new RuntimeException("Invalid document type: " + docType);
         }
         
-        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.PENDING);
         driverRepository.save(driver);
         return url;
+    }
+
+    @Override
+    @Transactional
+    public void submitVerification() {
+        Driver driver = getCurrentDriver();
+        if (driver.getRcUrl() == null || driver.getLicenseUrl() == null || driver.getInsuranceUrl() == null) {
+            throw new RuntimeException("Please upload all required documents before submitting.");
+        }
+        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.PENDING);
+        driverRepository.save(driver);
+        log.info("Driver id={} submitted documents for verification", driver.getId());
     }
 
     @Override

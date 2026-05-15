@@ -105,6 +105,12 @@ public class DriverController {
         return ResponseEntity.ok(walletService.withdrawMoneyFromMyWallet(walletAmountDto.getAmount()));
     }
 
+    @PostMapping("/submit-verification")
+    public ResponseEntity<Void> submitVerification() {
+        driverService.submitVerification();
+        return ResponseEntity.ok().build();
+    }
+
     // --- Verification Endpoints ---
 
     @PostMapping("/upload/rc")
