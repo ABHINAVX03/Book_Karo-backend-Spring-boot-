@@ -7,6 +7,7 @@ import com.codingshuttle.project.uber.uberApp.dto.UserDto;
 import com.codingshuttle.project.uber.uberApp.entities.Driver;
 import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.enums.Role;
+import com.codingshuttle.project.uber.uberApp.entities.enums.VehicleType;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.exceptions.RuntimeConflictException;
 import com.codingshuttle.project.uber.uberApp.exceptions.UnauthorizedAccessException;
@@ -97,7 +98,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public DriverDto onboardNewDriver(Long userId, String vehicleId) {
+    public DriverDto onboardNewDriver(Long userId, String vehicleId, VehicleType vehicleType) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null
                 || !authentication.isAuthenticated()
@@ -118,6 +119,7 @@ public class AuthServiceImpl implements AuthService {
                 .user(user)
                 .rating(0.0)
                 .vehicleId(vehicleId)
+                .vehicleType(vehicleType)
                 .available(true)
                 .build();
 

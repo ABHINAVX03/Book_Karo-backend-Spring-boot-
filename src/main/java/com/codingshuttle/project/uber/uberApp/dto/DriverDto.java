@@ -1,5 +1,6 @@
 package com.codingshuttle.project.uber.uberApp.dto;
 
+import com.codingshuttle.project.uber.uberApp.entities.enums.VehicleType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,4 +14,5 @@ public class DriverDto {
     private Double rating;
     private Boolean available;
     private String vehicleId;
+    private VehicleType vehicleType;
 }

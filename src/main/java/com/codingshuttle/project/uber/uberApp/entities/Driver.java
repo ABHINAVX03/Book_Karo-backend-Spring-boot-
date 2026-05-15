@@ -1,5 +1,6 @@
 package com.codingshuttle.project.uber.uberApp.entities;
 
+import com.codingshuttle.project.uber.uberApp.entities.enums.VehicleType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.locationtech.jts.geom.Point;
@@ -11,7 +12,8 @@ import org.locationtech.jts.geom.Point;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(indexes = {
-        @Index(name = "idx_driver_vehicle_id", columnList = "vehicleId")
+        @Index(name = "idx_driver_vehicle_id", columnList = "vehicleId"),
+        @Index(name = "idx_driver_available_type", columnList = "available, vehicleType")
 })
 public class Driver {
 
@@ -28,6 +30,9 @@ public class Driver {
     private Boolean available;
 
     private String vehicleId;
+
+    @Enumerated(EnumType.STRING)
+    private VehicleType vehicleType;
 
     @Column(columnDefinition = "Geometry(Point,4326)")
     private Point currentLocation;

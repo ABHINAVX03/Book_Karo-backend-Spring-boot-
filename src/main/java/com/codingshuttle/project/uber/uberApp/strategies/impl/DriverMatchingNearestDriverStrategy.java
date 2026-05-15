@@ -17,9 +17,13 @@ public class DriverMatchingNearestDriverStrategy implements DriverMatchingStrate
 
     @Override
     public List<Driver> findMatchingDriver(RideRequest rideRequest) {
-        return driverRepository.findTenNearestDrivers(
+        String vehicleType = rideRequest.getVehicleType() != null 
+                ? rideRequest.getVehicleType().name() : "MINI";
+
+        return driverRepository.findTenNearestDriversWithVehicleType(
                 rideRequest.getPickupLocation().getX(),  // longitude
-                rideRequest.getPickupLocation().getY()   // latitude
+                rideRequest.getPickupLocation().getY(),  // latitude
+                vehicleType
         );
     }
 }

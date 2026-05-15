@@ -36,6 +36,27 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
         SELECT d.*
         FROM driver d
         WHERE d.available = true
+          AND d.vehicle_type = :vehicleType
+          AND d.current_location IS NOT NULL
+          AND ST_DWithin(
+                d.current_location::geography,
+                ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
+                10000
+          )
+        ORDER BY ST_Distance(
+                d.current_location::geography,
+                ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+            )
+        LIMIT 10
+    """, nativeQuery = true)
+    List<Driver> findTenNearestDriversWithVehicleType(@Param("longitude") double longitude,
+                                                     @Param("latitude") double latitude,
+                                                     @Param("vehicleType") String vehicleType);
+
+    @Query(value = """
+        SELECT d.*
+        FROM driver d
+        WHERE d.available = true
           AND d.current_location IS NOT NULL
           AND ST_DWithin(
                 d.current_location::geography,
