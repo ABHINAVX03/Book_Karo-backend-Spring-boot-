@@ -229,6 +229,12 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    public DriverDto updateDriverAvailability(boolean available) {
+        Driver driver = getCurrentDriver();
+        return modelMapper.map(updateDriverAvailability(driver, available), DriverDto.class);
+    }
+
+    @Override
     public Driver updateDriverAvailability(Driver driver, boolean available) {
         if (available && Boolean.FALSE.equals(driver.getVehicleVerified())) {
             throw new RuntimeException("Vehicle verification pending. You cannot go online.");

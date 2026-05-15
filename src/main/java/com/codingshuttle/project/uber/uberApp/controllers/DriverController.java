@@ -45,6 +45,13 @@ public class DriverController {
         return ResponseEntity.ok(driverService.updateLocation(pointDto));
     }
 
+    @PatchMapping("/availability")
+    public ResponseEntity<DriverDto> updateAvailability(@RequestBody java.util.Map<String, Boolean> body) {
+        Boolean available = body.get("available");
+        if (available == null) throw new RuntimeException("Available status is required");
+        return ResponseEntity.ok(driverService.updateDriverAvailability(available));
+    }
+
     @GetMapping("/getIncomingRideRequest")
     public ResponseEntity<RideRequestDto> getIncomingRideRequest() {
         RideRequestDto rideRequest = driverService.getIncomingRideRequest();
