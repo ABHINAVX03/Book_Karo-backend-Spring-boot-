@@ -56,6 +56,9 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
+        user.setRefreshToken(refreshToken);
+        userRepository.save(user);
+
         return new String[]{accessToken, refreshToken};
     }
 
@@ -72,17 +75,15 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User mappedUser = modelMapper.map(signupDto, User.class);
-        mappedUser.setRoles(Set.of(Role.RIDER));
+        Role role = signupDto.getRole() != null ? signupDto.getRole() : Role.RIDER;
+        mappedUser.setRoles(Set.of(role));
         mappedUser.setPassword(passwordEncoder.encode(mappedUser.getPassword()));
         mappedUser.setIsVerified(true);
         User savedUser = userRepository.save(mappedUser);
 
-        // Remove OTP verification only after driver onboarding is complete 
-        // or if this is a standard rider signup.
-        // For now, let it expire naturally in 10 mins or clear it in onboardNewDriver.
-        // otpService.clearVerification(signupDto.getPhoneNumber());
-
-        riderService.createNewRider(savedUser);
+        if (role == Role.RIDER) {
+            riderService.createNewRider(savedUser);
+        }
         walletService.createNewWallet(savedUser);
 
         return modelMapper.map(savedUser, UserDto.class);
@@ -129,8 +130,11 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
 
-        if (user.getRoles().contains(DRIVER))
-            throw new RuntimeConflictException("User with id " + userId + " is already a Driver");
+        if (user.getRoles().contains(Role.RIDER))
+            throw new RuntimeConflictException("User with id " + userId + " is a Rider. Role isolation is enabled.");
+
+        if (driverRepository.findByUser(user).isPresent())
+            throw new RuntimeConflictException("Driver profile already exists for user with id " + userId);
 
         // Update user's phone number and mark as verified
         user.setPhoneNumber(phoneNumber);
@@ -144,9 +148,8 @@ public class AuthServiceImpl implements AuthService {
                 .available(true)
                 .build();
 
-        // FIX: Do NOT remove RIDER role — a driver-user should be able to book rides too.
-        // Just add the DRIVER role to the existing set.
-        user.getRoles().add(DRIVER);
+        // Ensure only DRIVER role is present
+        user.setRoles(Set.of(DRIVER));
         userRepository.save(user);
 
         otpService.clearVerification(phoneNumber);
@@ -161,7 +164,14 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        return jwtService.generateAccessToken(user);
+        if (!refreshToken.equals(user.getRefreshToken())) {
+            throw new UnauthorizedAccessException("Refresh token is invalid or has been rotated.");
+        }
+
+        String newAccessToken = jwtService.generateAccessToken(user);
+        // Optional: Rotate refresh token here too if desired, but usually just access token is fine
+        // for "rotation" you'd generate a new refresh token and update user.setRefreshToken
+        return newAccessToken;
     }
 
     @Override

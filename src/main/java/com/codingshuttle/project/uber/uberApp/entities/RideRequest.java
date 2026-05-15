@@ -9,6 +9,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.locationtech.jts.geom.Point;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +50,7 @@ public class RideRequest {
     @Enumerated(EnumType.STRING)
     private VehicleType vehicleType;
 
-    private Double fare;
+    private BigDecimal fare;
 
     private String otp;
 

@@ -34,7 +34,7 @@ public class WalletPaymentStrategy implements PaymentStrategy {
         walletService.deductMoneyFromWallet(rider.getUser(),
                 payment.getAmount(), null, payment.getRide(), TransactionMethod.RIDE);
 
-        double driversCut = payment.getAmount() * (1 - PLATFORM_COMMISSION);
+        BigDecimal driversCut = payment.getAmount().multiply(BigDecimal.ONE.subtract(PLATFORM_COMMISSION));
 
         walletService.addMoneyToWallet(driver.getUser(),
                 driversCut, null, payment.getRide(), TransactionMethod.RIDE);

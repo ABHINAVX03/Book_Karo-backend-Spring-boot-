@@ -5,6 +5,7 @@ import com.codingshuttle.project.uber.uberApp.entities.enums.RideStatus;
 import lombok.Data;
 import org.locationtech.jts.geom.Point;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -23,7 +24,7 @@ public class RideDto {
 
     private String otp;
 
-    private Double fare;
+    private BigDecimal fare;
     private Integer riderRating;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;

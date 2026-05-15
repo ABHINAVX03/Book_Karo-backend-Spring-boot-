@@ -28,6 +28,8 @@ public class RideServiceImpl implements RideService {
     private final RideRequestService rideRequestService;
     private final ModelMapper modelMapper;
 
+    private final com.codingshuttle.project.uber.uberApp.services.OtpService otpService;
+
     @Override
     public Ride getRideById(Long rideId) {
         return rideRepository.findById(rideId)
@@ -79,11 +81,5 @@ public class RideServiceImpl implements RideService {
                 rider,
                 List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
         );
-    }
-
-    private String generateRandomOTP() {
-        Random random = new Random();
-        int otpInt = random.nextInt(10000);
-        return String.format("%04d", otpInt);
     }
 }

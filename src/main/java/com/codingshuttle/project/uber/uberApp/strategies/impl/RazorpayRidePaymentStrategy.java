@@ -28,7 +28,7 @@ public class RazorpayRidePaymentStrategy implements PaymentStrategy {
     public void processPayment(Payment payment) {
         Driver driver = payment.getRide().getDriver();
 
-        double driversCut = payment.getAmount() * (1 - PLATFORM_COMMISSION);
+        BigDecimal driversCut = payment.getAmount().multiply(BigDecimal.ONE.subtract(PLATFORM_COMMISSION));
 
         walletService.addMoneyToWallet(
                 driver.getUser(),

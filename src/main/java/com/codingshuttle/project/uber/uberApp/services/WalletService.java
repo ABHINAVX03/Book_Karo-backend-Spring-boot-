@@ -8,13 +8,15 @@ import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.Wallet;
 import com.codingshuttle.project.uber.uberApp.entities.enums.TransactionMethod;
 
+import java.math.BigDecimal;
+
 public interface WalletService {
 
-    Wallet addMoneyToWallet(User user, Double amount,
+    Wallet addMoneyToWallet(User user, BigDecimal amount,
                             String transactionId, Ride ride,
                             TransactionMethod transactionMethod);
 
-    Wallet deductMoneyFromWallet(User user, Double amount,
+    Wallet deductMoneyFromWallet(User user, BigDecimal amount,
                                  String transactionId, Ride ride,
                                  TransactionMethod transactionMethod);
 
@@ -28,12 +30,12 @@ public interface WalletService {
 
     WalletDto getMyWallet();
 
-    WalletDto addMoneyToMyWallet(Double amount);
+    WalletDto addMoneyToMyWallet(BigDecimal amount);
 
-    WalletPaymentOrderDto createWalletTopUpOrder(Double amount);
+    WalletPaymentOrderDto createWalletTopUpOrder(BigDecimal amount);
 
     WalletDto verifyWalletTopUpPayment(WalletPaymentVerificationDto verificationDto);
 
-    WalletDto withdrawMoneyFromMyWallet(Double amount);
+    WalletDto withdrawMoneyFromMyWallet(BigDecimal amount);
 
 }

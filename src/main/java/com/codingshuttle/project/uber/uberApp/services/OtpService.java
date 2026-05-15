@@ -64,4 +64,8 @@ public class OtpService {
     public void clearVerification(String phoneNumber) {
         verifiedPhoneNumbers.remove(phoneNumber);
     }
+
+    public String generateRideOtp() {
+        return String.format("%04d", new Random().nextInt(10000));
+    }
 }

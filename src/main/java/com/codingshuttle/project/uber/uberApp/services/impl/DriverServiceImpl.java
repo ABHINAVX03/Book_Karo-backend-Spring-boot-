@@ -48,7 +48,9 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public RideDto acceptRide(Long rideRequestId) {
-        RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
+        // Use pessimistic lock to prevent multiple drivers from accepting the same ride
+        RideRequest rideRequest = rideRequestRepository.findByIdWithLock(rideRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("RideRequest not found with id: " + rideRequestId));
 
         if (!rideRequest.getRideRequestStatus().equals(RideRequestStatus.PENDING)) {
             throw new RuntimeException("RideRequest cannot be accepted, status is " + rideRequest.getRideRequestStatus());

@@ -1,11 +1,12 @@
 package com.codingshuttle.project.uber.uberApp.strategies;
 
 import com.codingshuttle.project.uber.uberApp.entities.RideRequest;
+import java.math.BigDecimal;
 
 public interface RideFareCalculationStrategy {
 
-    double RIDE_FARE_MULTIPLIER = 10;
+    BigDecimal RIDE_FARE_MULTIPLIER = new BigDecimal("10");
 
-    double calculateFare(RideRequest rideRequest);
+    BigDecimal calculateFare(RideRequest rideRequest);
 
 }

@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Getter
@@ -22,7 +23,7 @@ public class Wallet {
     @OneToOne(fetch = FetchType.LAZY, optional = false, cascade = CascadeType.DETACH)
     private User user;
 
-    private Double balance = 0.0;
+    private BigDecimal balance = BigDecimal.ZERO;
 
     @OneToMany(mappedBy = "wallet", fetch = FetchType.LAZY)
     private List<WalletTransaction> transactions;

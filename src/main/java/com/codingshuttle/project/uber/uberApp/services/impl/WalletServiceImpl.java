@@ -31,6 +31,7 @@ import org.springframework.web.client.RestClient;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Map;
@@ -59,10 +60,10 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = "wallets", key = "#user.getId()")
-    public Wallet addMoneyToWallet(User user, Double amount, String transactionId, Ride ride, TransactionMethod transactionMethod) {
+    public Wallet addMoneyToWallet(User user, BigDecimal amount, String transactionId, Ride ride, TransactionMethod transactionMethod) {
         validateAmount(amount);
         Wallet wallet = findByUser(user);
-        wallet.setBalance(wallet.getBalance()+amount);
+        wallet.setBalance(wallet.getBalance().add(amount));
 
         WalletTransaction walletTransaction = WalletTransaction.builder()
                 .transactionId(transactionId)
@@ -81,15 +82,15 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = "wallets", key = "#user.getId()")
-    public Wallet deductMoneyFromWallet(User user, Double amount,
+    public Wallet deductMoneyFromWallet(User user, BigDecimal amount,
                                         String transactionId, Ride ride,
                                         TransactionMethod transactionMethod) {
         validateAmount(amount);
         Wallet wallet = findByUser(user);
-        if (wallet.getBalance() < amount) {
+        if (wallet.getBalance().compareTo(amount) < 0) {
             throw new RuntimeConflictException("Insufficient wallet balance");
         }
-        wallet.setBalance(wallet.getBalance()-amount);
+        wallet.setBalance(wallet.getBalance().subtract(amount));
 
         WalletTransaction walletTransaction = WalletTransaction.builder()
                 .transactionId(transactionId)
@@ -145,7 +146,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = "wallets", key = "#root.target.getCurrentUserIdForCache()")
-    public WalletDto addMoneyToMyWallet(Double amount) {
+    public WalletDto addMoneyToMyWallet(BigDecimal amount) {
         Wallet wallet = addMoneyToWallet(
                 getCurrentUser(),
                 amount,
@@ -157,7 +158,7 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
-    public WalletPaymentOrderDto createWalletTopUpOrder(Double amount) {
+    public WalletPaymentOrderDto createWalletTopUpOrder(BigDecimal amount) {
         validateAmount(amount);
         ensureRazorpayConfigured();
 
@@ -220,7 +221,7 @@ public class WalletServiceImpl implements WalletService {
 
         validateCapturedPayment(payment, verificationDto.getRazorpayOrderId());
 
-        double amount = payment.get("amount").asInt() / 100.0;
+        BigDecimal amount = new BigDecimal(payment.get("amount").asInt()).divide(new BigDecimal("100.0"));
         TransactionMethod method = toTransactionMethod(payment.path("method").asText());
         Wallet wallet = addMoneyToWallet(
                 getCurrentUser(),
@@ -236,7 +237,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = "wallets", key = "#root.target.getCurrentUserIdForCache()")
-    public WalletDto withdrawMoneyFromMyWallet(Double amount) {
+    public WalletDto withdrawMoneyFromMyWallet(BigDecimal amount) {
         Wallet wallet = deductMoneyFromWallet(
                 getCurrentUser(),
                 amount,
@@ -251,8 +252,8 @@ public class WalletServiceImpl implements WalletService {
         return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
-    private void validateAmount(Double amount) {
-        if (amount == null || amount <= 0) {
+    private void validateAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeConflictException("Amount must be greater than 0");
         }
     }
@@ -264,8 +265,8 @@ public class WalletServiceImpl implements WalletService {
         }
     }
 
-    private int toPaise(Double amount) {
-        long paise = Math.round(amount * 100);
+    private int toPaise(BigDecimal amount) {
+        long paise = amount.multiply(new BigDecimal("100")).setScale(0, java.math.RoundingMode.HALF_UP).longValue();
         if (paise <= 0 || paise > Integer.MAX_VALUE) {
             throw new RuntimeConflictException("Invalid payment amount");
         }

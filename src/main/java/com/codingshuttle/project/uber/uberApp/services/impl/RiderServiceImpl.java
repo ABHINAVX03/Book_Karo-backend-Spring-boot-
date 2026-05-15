@@ -96,7 +96,7 @@ public class RiderServiceImpl implements RiderService {
         rideRequest.setRider(rider);
         Double fare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest);
         rideRequest.setFare(fare);
-        String otp = String.format("%04d", new java.util.Random().nextInt(10000));
+        String otp = otpService.generateRideOtp();
         rideRequest.setOtp(otp);
 
         RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
@@ -260,7 +260,7 @@ public class RiderServiceImpl implements RiderService {
             throw new RuntimeException("Payment for ride id=" + rideId + " is already confirmed");
         }
 
-        int amountInPaise = (int) (ride.getFare() * 100);
+        int amountInPaise = ride.getFare().multiply(new BigDecimal("100")).intValue();
         String credentials = Base64.getEncoder()
                 .encodeToString((razorpayKeyId + ":" + razorpayKeySecret).getBytes(StandardCharsets.UTF_8));
 

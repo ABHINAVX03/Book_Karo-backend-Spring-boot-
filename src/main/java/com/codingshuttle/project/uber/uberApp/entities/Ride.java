@@ -11,6 +11,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.locationtech.jts.geom.Point;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -58,7 +59,7 @@ public class Ride {
 
     private String otp;
 
-    private Double fare;
+    private BigDecimal fare;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
 }
