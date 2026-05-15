@@ -27,14 +27,16 @@ public class RideStrategyManager {
 
     public RideFareCalculationStrategy rideFareCalculationStrategy() {
 
-//        6PM to 9PM is SURGE TIME
-        LocalTime surgeStartTime = LocalTime.of(18, 0);
-        LocalTime surgeEndTime = LocalTime.of(21, 0);
+        LocalTime morningSurgeStart = LocalTime.of(8, 0);
+        LocalTime morningSurgeEnd = LocalTime.of(11, 0);
+        LocalTime eveningSurgeStart = LocalTime.of(18, 0);
+        LocalTime eveningSurgeEnd = LocalTime.of(21, 0);
         LocalTime currentTime = LocalTime.now();
 
-        boolean isSurgeTime = currentTime.isAfter(surgeStartTime) && currentTime.isBefore(surgeEndTime);
+        boolean isMorningSurge = currentTime.isAfter(morningSurgeStart) && currentTime.isBefore(morningSurgeEnd);
+        boolean isEveningSurge = currentTime.isAfter(eveningSurgeStart) && currentTime.isBefore(eveningSurgeEnd);
 
-        if(isSurgeTime) {
+        if(isMorningSurge || isEveningSurge) {
             return surgePricingFareCalculationStrategy;
         } else {
             return defaultFareCalculationStrategy;

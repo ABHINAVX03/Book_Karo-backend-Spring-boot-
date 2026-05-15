@@ -2,6 +2,7 @@ package com.codingshuttle.project.uber.uberApp.dto;
 
 import com.codingshuttle.project.uber.uberApp.entities.enums.PaymentMethod;
 import com.codingshuttle.project.uber.uberApp.entities.enums.RideRequestStatus;
+import com.codingshuttle.project.uber.uberApp.entities.enums.VehicleType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,5 +26,6 @@ public class RideRequestDto {
     private Double fare;
 
     private RideRequestStatus rideRequestStatus;
+    private VehicleType vehicleType;
     private String otp;
 }
