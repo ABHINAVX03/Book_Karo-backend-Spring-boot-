@@ -61,22 +61,14 @@ public class AuthController {
                                            HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         String tokens[] = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
 
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", tokens[1])
-                .httpOnly(true)
-                .secure(refreshCookieSecure)
-                .sameSite(refreshCookieSameSite)
-                .path("/")
-                .maxAge(Duration.ofDays(180))
-                .build();
-
-        httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        addRefreshTokenCookie(httpServletResponse, tokens[1]);
 
         UserDto userDto = authService.getUserByEmail(loginRequestDto.getEmail());
         return ResponseEntity.ok(new LoginResponseDto(tokens[0], userDto));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<LoginResponseDto> refresh(HttpServletRequest request) {
+    public ResponseEntity<LoginResponseDto> refresh(HttpServletRequest request, HttpServletResponse response) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
             throw new AuthenticationServiceException("Refresh token not found inside the Cookies");
@@ -88,10 +80,35 @@ public class AuthController {
                 .map(Cookie::getValue)
                 .orElseThrow(() -> new AuthenticationServiceException("Refresh token not found inside the Cookies"));
 
-        String accessToken = authService.refreshToken(refreshToken);
+        String[] tokens = authService.refreshToken(refreshToken);
 
-        return ResponseEntity.ok(new LoginResponseDto(accessToken, null));
+        addRefreshTokenCookie(response, tokens[1]);
+
+        return ResponseEntity.ok(new LoginResponseDto(tokens[0], null));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(refreshCookieSecure)
+                .sameSite(refreshCookieSameSite)
+                .path("/")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        return ResponseEntity.ok().build();
+    }
 
+    private void addRefreshTokenCookie(HttpServletResponse response, String token) {
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", token)
+                .httpOnly(true)
+                .secure(refreshCookieSecure)
+                .sameSite(refreshCookieSameSite)
+                .path("/")
+                .maxAge(Duration.ofDays(180))
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+    }
 }

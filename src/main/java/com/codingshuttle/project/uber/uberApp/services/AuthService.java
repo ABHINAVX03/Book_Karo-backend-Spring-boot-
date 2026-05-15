@@ -16,7 +16,7 @@ public interface AuthService {
 
     DriverDto onboardNewDriver(Long userId, String vehicleId, VehicleType vehicleType, String phoneNumber);
 
-    String refreshToken(String refreshToken);
+    String[] refreshToken(String refreshToken);
 
     UserDto getUserByEmail(String email);
 }

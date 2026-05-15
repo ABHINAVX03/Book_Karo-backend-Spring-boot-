@@ -32,7 +32,8 @@ public class WebSecurityConfig {
             "/auth/login",
             "/auth/refresh",
             "/auth/send-otp",
-            "/auth/verify-otp"
+            "/auth/verify-otp",
+            "/auth/logout"
     };
 
     @Value("${app.cors.allowed-origins:http://localhost,http://localhost:3000,http://localhost:5173,http://localhost:4173,https://book-car-frontend.vercel.app}")
@@ -63,8 +64,10 @@ public class WebSecurityConfig {
                 .filter(origin -> !origin.isEmpty())
                 .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));
+        config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L); // 1 hour cache for preflight
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

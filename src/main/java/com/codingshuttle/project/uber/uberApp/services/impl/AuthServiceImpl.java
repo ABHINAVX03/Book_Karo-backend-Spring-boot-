@@ -159,7 +159,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String refreshToken(String refreshToken) {
+    public String[] refreshToken(String refreshToken) {
         Long userId = jwtService.getUserIdFromToken(refreshToken);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
@@ -169,9 +169,12 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String newAccessToken = jwtService.generateAccessToken(user);
-        // Optional: Rotate refresh token here too if desired, but usually just access token is fine
-        // for "rotation" you'd generate a new refresh token and update user.setRefreshToken
-        return newAccessToken;
+        String newRefreshToken = jwtService.generateRefreshToken(user);
+
+        user.setRefreshToken(newRefreshToken);
+        userRepository.save(user);
+
+        return new String[]{newAccessToken, newRefreshToken};
     }
 
     @Override
