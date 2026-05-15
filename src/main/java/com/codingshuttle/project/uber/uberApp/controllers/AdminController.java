@@ -20,6 +20,15 @@ public class AdminController {
 
     private final DriverService driverService;
 
+    @GetMapping("/drivers")
+    public ResponseEntity<Page<DriverVerificationDto>> getAllDriversByStatus(
+            @RequestParam(defaultValue = "PENDING") com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status,
+            @RequestParam(defaultValue = "0") Integer pageOffset,
+            @RequestParam(defaultValue = "15") Integer pageSize) {
+        PageRequest pageRequest = PageRequest.of(pageOffset, pageSize, Sort.by("id").descending());
+        return ResponseEntity.ok(driverService.getAllDriversByStatus(status, pageRequest));
+    }
+
     @GetMapping("/drivers/pending")
     public ResponseEntity<Page<DriverVerificationDto>> getPendingDrivers(
             @RequestParam(defaultValue = "0") Integer pageOffset,

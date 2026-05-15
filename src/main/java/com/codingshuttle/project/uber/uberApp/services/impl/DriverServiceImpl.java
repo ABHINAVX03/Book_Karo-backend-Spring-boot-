@@ -286,6 +286,12 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    public Page<DriverVerificationDto> getAllDriversByStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status, PageRequest pageRequest) {
+        return driverRepository.findByVerificationStatus(status, pageRequest)
+                .map(driver -> modelMapper.map(driver, DriverVerificationDto.class));
+    }
+
+    @Override
     @Transactional
     public void approveDriver(Long driverId) {
         Driver driver = driverRepository.findById(driverId)

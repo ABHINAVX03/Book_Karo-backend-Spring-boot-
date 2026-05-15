@@ -44,6 +44,8 @@ public interface DriverService {
 
     org.springframework.data.domain.Page<com.codingshuttle.project.uber.uberApp.dto.DriverVerificationDto> getPendingDrivers(org.springframework.data.domain.PageRequest pageRequest);
 
+    org.springframework.data.domain.Page<com.codingshuttle.project.uber.uberApp.dto.DriverVerificationDto> getAllDriversByStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status, org.springframework.data.domain.PageRequest pageRequest);
+
     void approveDriver(Long driverId);
 
     void rejectDriver(Long driverId, String reason);
