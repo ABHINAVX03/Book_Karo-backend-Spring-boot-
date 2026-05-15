@@ -23,6 +23,7 @@ import java.util.Arrays;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.codingshuttle.project.uber.uberApp.services.OtpService otpService;
 
     @Value("${app.security.refresh-cookie-secure:true}")
     private boolean refreshCookieSecure;
@@ -40,6 +41,18 @@ public class AuthController {
     ResponseEntity<DriverDto> onBoardNewDriver(@PathVariable Long userId, @RequestBody OnboardDriverDto onboardDriverDto) {
         return new ResponseEntity<>(authService.onboardNewDriver(userId,
                 onboardDriverDto.getVehicleId(), onboardDriverDto.getVehicleType()), HttpStatus.CREATED);
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<Void> sendOtp(@RequestBody OtpRequestDto otpRequestDto) {
+        otpService.sendOtp(otpRequestDto.getPhoneNumber());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<java.util.Map<String, Boolean>> verifyOtp(@RequestBody OtpVerifyDto otpVerifyDto) {
+        boolean isValid = otpService.verifyOtp(otpVerifyDto.getPhoneNumber(), otpVerifyDto.getOtp());
+        return ResponseEntity.ok(java.util.Map.of("valid", isValid));
     }
 
     @PostMapping("/login")
