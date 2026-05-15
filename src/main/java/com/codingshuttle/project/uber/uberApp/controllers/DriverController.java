@@ -101,22 +101,26 @@ public class DriverController {
     // --- Verification Endpoints ---
 
     @PostMapping("/upload/rc")
-    public ResponseEntity<String> uploadRc(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
-        return ResponseEntity.ok(driverService.uploadDocument(file, "rc"));
+    public ResponseEntity<java.util.Map<String, String>> uploadRc(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String url = driverService.uploadDocument(file, "rc");
+        return ResponseEntity.ok(java.util.Map.of("url", url));
     }
 
     @PostMapping("/upload/license")
-    public ResponseEntity<String> uploadLicense(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
-        return ResponseEntity.ok(driverService.uploadDocument(file, "license"));
+    public ResponseEntity<java.util.Map<String, String>> uploadLicense(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String url = driverService.uploadDocument(file, "license");
+        return ResponseEntity.ok(java.util.Map.of("url", url));
     }
 
     @PostMapping("/upload/insurance")
-    public ResponseEntity<String> uploadInsurance(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
-        return ResponseEntity.ok(driverService.uploadDocument(file, "insurance"));
+    public ResponseEntity<java.util.Map<String, String>> uploadInsurance(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String url = driverService.uploadDocument(file, "insurance");
+        return ResponseEntity.ok(java.util.Map.of("url", url));
     }
 
     @PostMapping("/upload/profile-photo")
-    public ResponseEntity<String> uploadProfilePhoto(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
-        return ResponseEntity.ok(driverService.uploadDocument(file, "profile"));
+    public ResponseEntity<java.util.Map<String, String>> uploadProfilePhoto(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String url = driverService.uploadDocument(file, "profile");
+        return ResponseEntity.ok(java.util.Map.of("url", url));
     }
 }
