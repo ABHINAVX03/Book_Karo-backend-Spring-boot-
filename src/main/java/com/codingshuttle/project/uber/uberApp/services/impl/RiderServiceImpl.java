@@ -55,6 +55,7 @@ public class RiderServiceImpl implements RiderService {
     private final PaymentService paymentService;
     private final PaymentRepository paymentRepository;
     private final EmailSenderService emailSenderService;
+    private final OtpService otpService;
 
     @Value("${razorpay.key-id:}")
     private String razorpayKeyId;
@@ -76,7 +77,7 @@ public class RiderServiceImpl implements RiderService {
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
         rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
         rideRequest.setRider(rider);
-        Double fare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest);
+        BigDecimal fare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest);
         rideRequest.setFare(fare);
         return modelMapper.map(rideRequest, RideRequestDto.class);
     }
@@ -95,7 +96,7 @@ public class RiderServiceImpl implements RiderService {
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
         rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
         rideRequest.setRider(rider);
-        Double fare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest);
+        BigDecimal fare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest);
         rideRequest.setFare(fare);
         String otp = otpService.generateRideOtp();
         rideRequest.setOtp(otp);

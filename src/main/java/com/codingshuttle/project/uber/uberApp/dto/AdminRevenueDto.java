@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -15,9 +16,9 @@ public class AdminRevenueDto {
 
     // Summary stats
     private Long totalCompletedRides;
-    private Double totalFareCollected;
-    private Double totalCommissionEarned;
-    private Double totalDriverPayouts;
+    private BigDecimal totalFareCollected;
+    private BigDecimal totalCommissionEarned;
+    private BigDecimal totalDriverPayouts;
 
     // Paginated ride records
     private List<AdminRideRecordDto> rides;
@@ -36,8 +37,8 @@ public class AdminRevenueDto {
         private String riderName;
         private String driverName;
         private String paymentMethod;
-        private Double totalFare;
-        private Double platformCommission;
-        private Double driverPayout;
+        private BigDecimal totalFare;
+        private BigDecimal platformCommission;
+        private BigDecimal driverPayout;
     }
 }

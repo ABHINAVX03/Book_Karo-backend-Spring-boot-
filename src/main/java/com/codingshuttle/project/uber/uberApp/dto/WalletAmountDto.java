@@ -1,21 +1,23 @@
 package com.codingshuttle.project.uber.uberApp.dto;
 
+import java.math.BigDecimal;
+
 public class WalletAmountDto {
 
-    private Double amount;
+    private BigDecimal amount;
 
     public WalletAmountDto() {
     }
 
-    public WalletAmountDto(Double amount) {
+    public WalletAmountDto(BigDecimal amount) {
         this.amount = amount;
     }
 
-    public Double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(Double amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 }

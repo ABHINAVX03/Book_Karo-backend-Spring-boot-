@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 /**
  * Strategy for rides paid via Razorpay (card/UPI/netbanking).
  * The rider's payment is collected by Razorpay externally.

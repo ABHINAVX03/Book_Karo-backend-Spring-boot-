@@ -6,17 +6,13 @@ import com.codingshuttle.project.uber.uberApp.entities.Rider;
 import com.codingshuttle.project.uber.uberApp.entities.enums.PaymentStatus;
 import com.codingshuttle.project.uber.uberApp.entities.enums.TransactionMethod;
 import com.codingshuttle.project.uber.uberApp.repositories.PaymentRepository;
-import com.codingshuttle.project.uber.uberApp.services.PaymentService;
 import com.codingshuttle.project.uber.uberApp.services.WalletService;
 import com.codingshuttle.project.uber.uberApp.strategies.PaymentStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-//Rider had 232, Driver had 500
-//Ride cost is 100, commission = 30
-//Rider -> 232-100 = 132
-//Driver -> 500 + (100 - 30) = 570
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor

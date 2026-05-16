@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,14 +19,17 @@ import java.util.stream.Collectors;
 public class AdminServiceImpl implements AdminService {
 
     private final RideRepository rideRepository;
-    private static final Double PLATFORM_COMMISSION_PERCENTAGE = 0.3;
+    private static final BigDecimal PLATFORM_COMMISSION_PERCENTAGE = new BigDecimal("0.3");
 
     @Override
     public AdminRevenueDto getRevenueStats(Pageable pageable) {
         Long totalCompletedRides = rideRepository.countByRideStatus(RideStatus.ENDED);
-        Double totalFareCollected = rideRepository.sumFareByRideStatus(RideStatus.ENDED);
-        Double totalCommissionEarned = totalFareCollected * PLATFORM_COMMISSION_PERCENTAGE;
-        Double totalDriverPayouts = totalFareCollected - totalCommissionEarned;
+        BigDecimal totalFareCollected = rideRepository.sumFareByRideStatus(RideStatus.ENDED);
+        if (totalFareCollected == null) totalFareCollected = BigDecimal.ZERO;
+
+        BigDecimal totalCommissionEarned = totalFareCollected.multiply(PLATFORM_COMMISSION_PERCENTAGE)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalDriverPayouts = totalFareCollected.subtract(totalCommissionEarned);
 
         Page<Ride> ridePage = rideRepository.findByRideStatus(RideStatus.ENDED, pageable);
 
@@ -43,16 +48,19 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private AdminRevenueDto.AdminRideRecordDto mapToRideRecordDto(Ride ride) {
-        Double totalFare = ride.getFare();
-        Double platformCommission = totalFare * PLATFORM_COMMISSION_PERCENTAGE;
-        Double driverPayout = totalFare - platformCommission;
+        BigDecimal totalFare = ride.getFare();
+        if (totalFare == null) totalFare = BigDecimal.ZERO;
+        
+        BigDecimal platformCommission = totalFare.multiply(PLATFORM_COMMISSION_PERCENTAGE)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal driverPayout = totalFare.subtract(platformCommission);
 
         return AdminRevenueDto.AdminRideRecordDto.builder()
                 .rideId(ride.getId())
                 .createdTime(ride.getCreatedTime() != null ? ride.getCreatedTime().toString() : "")
                 .endedAt(ride.getEndedAt() != null ? ride.getEndedAt().toString() : "")
-                .riderName(ride.getRider().getUser().getName())
-                .driverName(ride.getDriver().getUser().getName())
+                .riderName(ride.getRider() != null && ride.getRider().getUser() != null ? ride.getRider().getUser().getName() : "N/A")
+                .driverName(ride.getDriver() != null && ride.getDriver().getUser() != null ? ride.getDriver().getUser().getName() : "N/A")
                 .paymentMethod(ride.getPaymentMethod() != null ? ride.getPaymentMethod().toString() : "N/A")
                 .totalFare(totalFare)
                 .platformCommission(platformCommission)
