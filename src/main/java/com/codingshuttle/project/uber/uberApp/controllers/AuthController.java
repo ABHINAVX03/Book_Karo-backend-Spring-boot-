@@ -1,5 +1,6 @@
 package com.codingshuttle.project.uber.uberApp.controllers;
 
+import com.codingshuttle.project.uber.uberApp.configs.AppSecurityProperties;
 import com.codingshuttle.project.uber.uberApp.dto.*;
 import jakarta.validation.Valid;
 import com.codingshuttle.project.uber.uberApp.services.AuthService;
@@ -27,11 +28,12 @@ public class AuthController {
     private final AuthService authService;
     private final com.codingshuttle.project.uber.uberApp.services.OtpService otpService;
     private final CaptchaVerificationService captchaVerificationService;
+    private final AppSecurityProperties appSecurityProperties;
 
     @Value("${app.security.access-cookie-secure:true}")
     private boolean accessCookieSecure;
 
-    @Value("${app.security.access-cookie-same-site:Lax}")
+    @Value("${app.security.access-cookie-same-site:None}")
     private String accessCookieSameSite;
 
     @Value("${app.security.refresh-cookie-secure:true}")
@@ -78,31 +80,37 @@ public class AuthController {
                 httpServletRequest.getHeader("User-Agent")
         );
 
-        addAccessTokenCookie(httpServletResponse, tokens.getAccessToken());
-        addRefreshTokenCookie(httpServletResponse, tokens.getRefreshToken());
+        boolean accessSecure = useSecureCookie(httpServletRequest, accessCookieSecure);
+        boolean refreshSecure = useSecureCookie(httpServletRequest, refreshCookieSecure);
+        addAccessTokenCookie(httpServletResponse, tokens.getAccessToken(), accessSecure);
+        addRefreshTokenCookie(httpServletResponse, tokens.getRefreshToken(), refreshSecure);
 
-        return ResponseEntity.ok(new LoginResponseDto(tokens.getAccessToken(), tokens.getUser()));
+        return ResponseEntity.ok(new LoginResponseDto(tokens.getAccessToken(), tokens.getRefreshToken(), tokens.getUser()));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<LoginResponseDto> refresh(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = extractRefreshToken(request);
+    public ResponseEntity<LoginResponseDto> refresh(HttpServletRequest request, HttpServletResponse response,
+                                                     @RequestBody(required = false) RefreshTokenDto refreshTokenDto) {
+        String refreshToken = extractRefreshToken(request, refreshTokenDto);
         AuthTokensDto tokens = authService.refreshToken(
                 refreshToken,
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent")
         );
 
-        addAccessTokenCookie(response, tokens.getAccessToken());
-        addRefreshTokenCookie(response, tokens.getRefreshToken());
+        boolean accessSecure = useSecureCookie(request, accessCookieSecure);
+        boolean refreshSecure = useSecureCookie(request, refreshCookieSecure);
+        addAccessTokenCookie(response, tokens.getAccessToken(), accessSecure);
+        addRefreshTokenCookie(response, tokens.getRefreshToken(), refreshSecure);
 
-        return ResponseEntity.ok(new LoginResponseDto(tokens.getAccessToken(), tokens.getUser()));
+        return ResponseEntity.ok(new LoginResponseDto(tokens.getAccessToken(), tokens.getRefreshToken(), tokens.getUser()));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response,
+                                       @RequestBody(required = false) RefreshTokenDto refreshTokenDto) {
         try {
-            authService.logout(extractRefreshToken(request));
+            authService.logout(extractRefreshToken(request, refreshTokenDto));
         } catch (Exception ignored) {
             // Cookie revocation should still proceed on malformed/expired tokens.
         }
@@ -116,41 +124,59 @@ public class AuthController {
         return ResponseEntity.ok(authService.getCurrentUser());
     }
 
-    private String extractRefreshToken(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null) {
-            throw new AuthenticationServiceException("Refresh token not found inside the Cookies");
-        }
-
-        return Arrays.stream(cookies)
-                .filter(cookie -> "refreshToken".equals(cookie.getName()))
-                .findFirst()
-                .map(Cookie::getValue)
-                .orElseThrow(() -> new AuthenticationServiceException("Refresh token not found inside the Cookies"));
-    }
-
-    private void addAccessTokenCookie(HttpServletResponse response, String token) {
+    private void addAccessTokenCookie(HttpServletResponse response, String token, boolean secure) {
         ResponseCookie accessCookie = ResponseCookie.from("accessToken", token)
                 .httpOnly(true)
-                .secure(accessCookieSecure)
+                .secure(secure)
                 .sameSite(accessCookieSameSite)
                 .path("/")
-                .maxAge(Duration.ofHours(1))
+                .maxAge(Duration.ofMinutes(appSecurityProperties.getAccessTokenMinutes()))
                 .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
     }
 
-    private void addRefreshTokenCookie(HttpServletResponse response, String token) {
+    private void addRefreshTokenCookie(HttpServletResponse response, String token, boolean secure) {
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", token)
                 .httpOnly(true)
-                .secure(refreshCookieSecure)
+                .secure(secure)
                 .sameSite(refreshCookieSameSite)
                 .path("/")
-                .maxAge(Duration.ofDays(180))
+                .maxAge(Duration.ofDays(appSecurityProperties.getRefreshTokenDays()))
                 .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+    }
+
+    private String extractRefreshToken(HttpServletRequest request, RefreshTokenDto refreshTokenDto) {
+        String bearerToken = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+
+        if (refreshTokenDto != null && refreshTokenDto.getRefreshToken() != null && !refreshTokenDto.getRefreshToken().isBlank()) {
+            return refreshTokenDto.getRefreshToken();
+        }
+
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            return Arrays.stream(cookies)
+                    .filter(cookie -> "refreshToken".equals(cookie.getName()))
+                    .map(Cookie::getValue)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        throw new AuthenticationServiceException("Refresh token not found inside the request");
+    }
+
+    private boolean useSecureCookie(HttpServletRequest request, boolean configuredSecure) {
+        if (!configuredSecure) {
+            return false;
+        }
+        return request.isSecure()
+                || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"))
+                || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Ssl"));
     }
 
     private void clearCookie(HttpServletResponse response, String cookieName, boolean secure, String sameSite) {

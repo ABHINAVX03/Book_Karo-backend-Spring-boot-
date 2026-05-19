@@ -69,7 +69,7 @@ public class AppSecurityProperties {
     private boolean accessCookieSecure = true;
 
     @NotBlank
-    private String accessCookieSameSite = "Lax";
+    private String accessCookieSameSite = "None";
 
     private boolean captchaEnabled = false;
 

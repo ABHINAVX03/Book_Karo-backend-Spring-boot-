@@ -61,11 +61,33 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 ### 3. Set up environment variables
 
-For the **prod** profile, set the following environment variable:
+For the **prod** profile, set the following environment variables:
 
 ```bash
-JWT_SECRET_KEY=your_jwt_secret_key_here
+export JWT_SECRET_KEY="your_jwt_secret_key_here"
+export SPRING_DATASOURCE_URL="jdbc:postgresql://<host>:5432/<dbname>?sslmode=require"
+export SPRING_DATASOURCE_USERNAME="your_db_user"
+export SPRING_DATASOURCE_PASSWORD="your_db_password"
+export APP_CORS_ALLOWED_ORIGINS="https://your-frontend.example.com"
+
+# Optional services
+export SPRING_MAIL_HOST="smtp.gmail.com"
+export SPRING_MAIL_PORT="587"
+export SPRING_MAIL_USERNAME="your_email_user"
+export SPRING_MAIL_PASSWORD="your_email_password"
+export SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH="true"
+export SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE="true"
+export CLOUDINARY_CLOUD_NAME="your_cloudinary_cloud_name"
+export CLOUDINARY_API_KEY="your_cloudinary_api_key"
+export CLOUDINARY_API_SECRET="your_cloudinary_api_secret"
+export RAZORPAY_KEY_ID="your_razorpay_key_id"
+export RAZORPAY_KEY_SECRET="your_razorpay_key_secret"
+export TWILIO_ACCOUNT_SID="your_twilio_sid"
+export TWILIO_AUTH_TOKEN="your_twilio_auth_token"
+export TWILIO_PHONE_NUMBER="+1234567890"
 ```
+
+If some optional services are not used, leave those variables blank or unset.
 
 ### 4. Configure application properties
 
@@ -75,7 +97,7 @@ spring.datasource.url=jdbc:postgresql://localhost:5433/postgres
 spring.datasource.username=admin
 spring.datasource.password=secret
 spring.jpa.hibernate.ddl-auto=create
-jwt.secretKey=your_dev_secret_key
+app.security.jwt-secret=your_dev_secret_key
 ```
 
 **Prod profile** (`application-prod.properties`):
@@ -83,8 +105,8 @@ jwt.secretKey=your_dev_secret_key
 spring.datasource.url=jdbc:postgresql://<your-neon-host>/<dbname>?sslmode=require
 spring.datasource.username=your_username
 spring.datasource.password=your_password
-spring.jpa.hibernate.ddl-auto=update
-jwt.secretKey=${JWT_SECRET_KEY}
+spring.jpa.hibernate.ddl-auto=validate
+app.security.jwt-secret=${JWT_SECRET_KEY}
 ```
 
 ### 5. Run the application
@@ -182,8 +204,26 @@ http://localhost:8080/swagger-ui/index.html
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `JWT_SECRET_KEY` | Secret key for signing JWT tokens | Yes (prod) |
-| `SPRING_PROFILES_ACTIVE` | Active profile (`dev` or `prod`) | No (defaults to dev) |
+| `JWT_SECRET_KEY` | Secret key for signing JWT tokens | Yes |
+| `SPRING_DATASOURCE_URL` | JDBC URL for PostgreSQL with PostGIS | Yes |
+| `SPRING_DATASOURCE_USERNAME` | PostgreSQL username | Yes |
+| `SPRING_DATASOURCE_PASSWORD` | PostgreSQL password | Yes |
+| `APP_CORS_ALLOWED_ORIGINS` | Allowed frontend origins | Yes |
+| `SPRING_MAIL_HOST` | SMTP host | No |
+| `SPRING_MAIL_PORT` | SMTP port | No |
+| `SPRING_MAIL_USERNAME` | SMTP username | No |
+| `SPRING_MAIL_PASSWORD` | SMTP password | No |
+| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH` | Enable SMTP auth | No |
+| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE` | Enable STARTTLS | No |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | No |
+| `CLOUDINARY_API_KEY` | Cloudinary API key | No |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret | No |
+| `RAZORPAY_KEY_ID` | Razorpay API key | No |
+| `RAZORPAY_KEY_SECRET` | Razorpay API secret | No |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID | No |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token | No |
+| `TWILIO_PHONE_NUMBER` | Twilio sender phone number | No |
+| `SPRING_PROFILES_ACTIVE` | Active Spring profile (`dev` or `prod`) | No |
 
 ---
 
