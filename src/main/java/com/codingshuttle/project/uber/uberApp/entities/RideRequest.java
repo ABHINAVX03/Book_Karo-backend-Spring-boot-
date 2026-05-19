@@ -54,18 +54,7 @@ public class RideRequest {
 
     private String otp;
 
-    /**
-     * FIX: Changed from LAZY to EAGER.
-     *
-     * Previously LAZY loading caused LazyInitializationException when
-     * acceptRide() streamed over notifiedDrivers outside a guaranteed
-     * open Hibernate session. The list is small (max 10 drivers) so
-     * EAGER loading is safe and avoids the N+1 risk.
-     *
-     * Also added a composite index on the join table to make the
-     * "find requests for driver X with status PENDING" query fast.
-     */
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "ride_request_notified_drivers",
             joinColumns = @JoinColumn(name = "ride_request_id"),

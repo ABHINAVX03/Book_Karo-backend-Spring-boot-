@@ -2,10 +2,14 @@ package com.codingshuttle.project.uber.uberApp.services.impl;
 
 import com.codingshuttle.project.uber.uberApp.dto.SignupDto;
 import com.codingshuttle.project.uber.uberApp.dto.UserDto;
+import com.codingshuttle.project.uber.uberApp.dto.AuthTokensDto;
+import com.codingshuttle.project.uber.uberApp.configs.AppSecurityProperties;
+import com.codingshuttle.project.uber.uberApp.entities.AuthSession;
 import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.enums.Role;
 import com.codingshuttle.project.uber.uberApp.repositories.UserRepository;
 import com.codingshuttle.project.uber.uberApp.security.JWTService;
+import com.codingshuttle.project.uber.uberApp.services.OtpService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,10 +53,19 @@ class AuthServiceImplTest {
     @Mock
     private DriverServiceImpl driverService;
 
+    @Mock
+    private OtpService otpService;
+
+    @Mock
+    private AuthSessionService authSessionService;
+
+    @Mock
+    private AppSecurityProperties appSecurityProperties;
+
     @Spy
     private ModelMapper modelMapper;
 
-    @Spy
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @InjectMocks
@@ -75,16 +88,17 @@ class AuthServiceImplTest {
         Authentication authentication = mock(Authentication.class);
         when(authenticationManager.authenticate(any(Authentication.class))).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(user);
-        when(jwtService.generateAccessToken(any(User.class))).thenReturn("accessToken");
-        when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refreshToken");
+        when(jwtService.generateAccessToken(any(User.class))).thenReturn(new JWTService.TokenDetails("accessToken", "access-jti", java.time.Instant.now(), java.time.Instant.now().plusSeconds(3600), JWTService.ACCESS_TOKEN_TYPE));
+        when(jwtService.generateRefreshToken(any(User.class))).thenReturn(new JWTService.TokenDetails("refreshToken", "refresh-jti", java.time.Instant.now(), java.time.Instant.now().plusSeconds(3600), JWTService.REFRESH_TOKEN_TYPE));
+        when(authSessionService.createSession(any(User.class), any(), anyString(), anyString())).thenReturn(new AuthSession());
 
 //        act
-        String[] tokens = authService.login(user.getEmail(), user.getPassword());
+        AuthTokensDto tokens = authService.login(user.getEmail(), user.getPassword(), "127.0.0.1", "JUnit");
 
 //        assert
-        assertThat(tokens).hasSize(2);
-        assertThat(tokens[0]).isEqualTo("accessToken");
-        assertThat(tokens[1]).isEqualTo("refreshToken");
+        assertThat(tokens.getAccessToken()).isEqualTo("accessToken");
+        assertThat(tokens.getRefreshToken()).isEqualTo("refreshToken");
+        verify(authSessionService).createSession(any(User.class), any(), anyString(), anyString());
     }
 
     @Test
@@ -92,11 +106,15 @@ class AuthServiceImplTest {
         // Arrange
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenReturn(user);
+        when(otpService.isPhoneNumberVerified("+919876543210")).thenReturn(true);
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
 
         // Act
         SignupDto signupDto = new SignupDto();
+        signupDto.setName("Test User");
         signupDto.setEmail("test@example.com");
-        signupDto.setPassword("password");
+        signupDto.setPassword("Password123");
+        signupDto.setPhoneNumber("+919876543210");
         UserDto userDto = authService.signup(signupDto);
 
         // Assert

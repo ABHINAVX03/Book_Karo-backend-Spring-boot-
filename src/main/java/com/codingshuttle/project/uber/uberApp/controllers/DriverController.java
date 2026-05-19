@@ -4,6 +4,7 @@ import com.codingshuttle.project.uber.uberApp.dto.*;
 import com.codingshuttle.project.uber.uberApp.services.AuthService;
 import com.codingshuttle.project.uber.uberApp.services.DriverService;
 import com.codingshuttle.project.uber.uberApp.services.WalletService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,7 +32,7 @@ public class DriverController {
 
     @PostMapping("/startRide/{rideRequestId}")
     public ResponseEntity<RideDto> startRide(@PathVariable Long rideRequestId,
-                                              @RequestBody RideStartDto rideStartDto) {
+                                              @Valid @RequestBody RideStartDto rideStartDto) {
         return ResponseEntity.ok(driverService.startRide(rideRequestId, rideStartDto.getOtp()));
     }
 
@@ -41,7 +42,7 @@ public class DriverController {
     }
 
     @PatchMapping("/updateLocation")
-    public ResponseEntity<DriverDto> updateLocation(@RequestBody PointDto pointDto) {
+    public ResponseEntity<DriverDto> updateLocation(@Valid @RequestBody PointDto pointDto) {
         return ResponseEntity.ok(driverService.updateLocation(pointDto));
     }
 
@@ -67,7 +68,7 @@ public class DriverController {
     }
 
     @PostMapping("/rateRider")
-    public ResponseEntity<RiderDto> rateRider(@RequestBody RatingDto ratingDto) {
+    public ResponseEntity<RiderDto> rateRider(@Valid @RequestBody RatingDto ratingDto) {
         return ResponseEntity.ok(driverService.rateRider(ratingDto.getRideId(), ratingDto.getRating()));
     }
 
@@ -96,12 +97,12 @@ public class DriverController {
     }
 
     @PostMapping("/wallet/addMoney")
-    public ResponseEntity<WalletDto> addMoneyToWallet(@RequestBody WalletAmountDto walletAmountDto) {
+    public ResponseEntity<WalletDto> addMoneyToWallet(@Valid @RequestBody WalletAmountDto walletAmountDto) {
         return ResponseEntity.ok(walletService.addMoneyToMyWallet(walletAmountDto.getAmount()));
     }
 
     @PostMapping("/wallet/withdraw")
-    public ResponseEntity<WalletDto> withdrawMoneyFromWallet(@RequestBody WalletAmountDto walletAmountDto) {
+    public ResponseEntity<WalletDto> withdrawMoneyFromWallet(@Valid @RequestBody WalletAmountDto walletAmountDto) {
         return ResponseEntity.ok(walletService.withdrawMoneyFromMyWallet(walletAmountDto.getAmount()));
     }
 

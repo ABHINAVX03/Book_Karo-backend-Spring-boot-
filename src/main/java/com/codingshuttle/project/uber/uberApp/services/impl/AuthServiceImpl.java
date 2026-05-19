@@ -1,9 +1,12 @@
 package com.codingshuttle.project.uber.uberApp.services.impl;
 
+import com.codingshuttle.project.uber.uberApp.configs.AppSecurityProperties;
+import com.codingshuttle.project.uber.uberApp.dto.AuthTokensDto;
 import com.codingshuttle.project.uber.uberApp.dto.DriverDto;
 import com.codingshuttle.project.uber.uberApp.dto.SignupDto;
 import com.codingshuttle.project.uber.uberApp.dto.UpdateProfileDto;
 import com.codingshuttle.project.uber.uberApp.dto.UserDto;
+import com.codingshuttle.project.uber.uberApp.entities.AuthSession;
 import com.codingshuttle.project.uber.uberApp.entities.Driver;
 import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.enums.Role;
@@ -16,11 +19,15 @@ import com.codingshuttle.project.uber.uberApp.repositories.UserRepository;
 import com.codingshuttle.project.uber.uberApp.security.JWTService;
 import com.codingshuttle.project.uber.uberApp.services.AuthService;
 import com.codingshuttle.project.uber.uberApp.services.DriverService;
+import com.codingshuttle.project.uber.uberApp.services.OtpService;
 import com.codingshuttle.project.uber.uberApp.services.RiderService;
 import com.codingshuttle.project.uber.uberApp.services.WalletService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,12 +35,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import static com.codingshuttle.project.uber.uberApp.entities.enums.Role.DRIVER;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
@@ -45,33 +54,47 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
-    private final com.codingshuttle.project.uber.uberApp.services.OtpService otpService;
+    private final OtpService otpService;
+    private final AuthSessionService authSessionService;
+    private final AppSecurityProperties appSecurityProperties;
 
     @Override
-    public String[] login(String email, String password) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
-        );
+    @Transactional
+    public AuthTokensDto login(String email, String password, String clientIp, String userAgent) {
+        User account = userRepository.findByEmailForUpdate(email).orElse(null);
+        if (account != null && !account.isAccountNonLocked()) {
+            log.warn("Login blocked for locked account email={} ip={}", email, clientIp);
+            throw new LockedException("Account is temporarily locked. Please try again later.");
+        }
 
-        User user = (User) authentication.getPrincipal();
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, password)
+            );
 
-        String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
+            User user = (User) authentication.getPrincipal();
+            resetFailedLoginState(user);
 
-        user.setRefreshToken(refreshToken);
-        userRepository.save(user);
+            JWTService.TokenDetails accessToken = jwtService.generateAccessToken(user);
+            JWTService.TokenDetails refreshToken = jwtService.generateRefreshToken(user);
+            authSessionService.createSession(user, refreshToken, clientIp, userAgent);
 
-        return new String[]{accessToken, refreshToken};
+            log.info("Login succeeded for userId={} email={} ip={}", user.getId(), user.getEmail(), clientIp);
+            return new AuthTokensDto(accessToken.token(), refreshToken.token(), modelMapper.map(user, UserDto.class));
+        } catch (BadCredentialsException ex) {
+            registerFailedLogin(email, clientIp);
+            throw ex;
+        }
     }
 
     @Override
     @Transactional
     public UserDto signup(SignupDto signupDto) {
         User user = userRepository.findByEmail(signupDto.getEmail()).orElse(null);
-        if (user != null)
+        if (user != null) {
             throw new RuntimeConflictException("Cannot signup, User already exists with email " + signupDto.getEmail());
+        }
 
-        // Check if phone number is verified
         if (!otpService.isPhoneNumberVerified(signupDto.getPhoneNumber())) {
             throw new RuntimeConflictException("Phone number " + signupDto.getPhoneNumber() + " is not verified. Verification is mandatory.");
         }
@@ -81,6 +104,8 @@ public class AuthServiceImpl implements AuthService {
         mappedUser.setRoles(Set.of(role));
         mappedUser.setPassword(passwordEncoder.encode(mappedUser.getPassword()));
         mappedUser.setIsVerified(true);
+        mappedUser.setFailedLoginAttempts(0);
+        mappedUser.setLockedUntil(null);
         User savedUser = userRepository.save(mappedUser);
 
         if (role == Role.RIDER) {
@@ -88,6 +113,7 @@ public class AuthServiceImpl implements AuthService {
         }
         walletService.createNewWallet(savedUser);
 
+        log.info("Signup completed for userId={} role={}", savedUser.getId(), role);
         return modelMapper.map(savedUser, UserDto.class);
     }
 
@@ -124,7 +150,6 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedAccessException("You can only complete vehicle registration for your own account.");
         }
 
-        // Check if phone number is verified
         if (!otpService.isPhoneNumberVerified(phoneNumber)) {
             throw new RuntimeConflictException("Phone number " + phoneNumber + " is not verified. Driver activation requires verification.");
         }
@@ -132,13 +157,14 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
 
-        if (user.getRoles().contains(Role.RIDER))
+        if (user.getRoles().contains(Role.RIDER)) {
             throw new RuntimeConflictException("User with id " + userId + " is a Rider. Role isolation is enabled.");
+        }
 
-        if (driverRepository.findByUser(user).isPresent())
+        if (driverRepository.findByUser(user).isPresent()) {
             throw new RuntimeConflictException("Driver profile already exists for user with id " + userId);
+        }
 
-        // Update user's phone number and mark as verified
         user.setPhoneNumber(phoneNumber);
         user.setIsVerified(true);
 
@@ -150,10 +176,8 @@ public class AuthServiceImpl implements AuthService {
                 .available(true)
                 .build();
 
-        // Ensure only DRIVER role is present
         user.setRoles(Set.of(DRIVER));
         userRepository.save(user);
-
         otpService.clearVerification(phoneNumber);
 
         Driver savedDriver = driverService.createNewDriver(createDriver);
@@ -161,28 +185,67 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String[] refreshToken(String refreshToken) {
-        Long userId = jwtService.getUserIdFromToken(refreshToken);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+    @Transactional
+    public AuthTokensDto refreshToken(String refreshToken, String clientIp, String userAgent) {
+        JWTService.ParsedToken parsedToken = jwtService.parseToken(refreshToken);
+        AuthSession session = authSessionService.validateRefreshSession(parsedToken, refreshToken);
+        User user = userRepository.findById(parsedToken.userId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + parsedToken.userId()));
 
-        if (!refreshToken.equals(user.getRefreshToken())) {
-            throw new UnauthorizedAccessException("Refresh token is invalid or has been rotated.");
-        }
+        JWTService.TokenDetails newAccessToken = jwtService.generateAccessToken(user);
+        JWTService.TokenDetails newRefreshToken = jwtService.generateRefreshToken(user);
+        authSessionService.revoke(session, newRefreshToken.jti());
+        authSessionService.createSession(user, newRefreshToken, clientIp, userAgent);
 
-        String newAccessToken = jwtService.generateAccessToken(user);
-        String newRefreshToken = jwtService.generateRefreshToken(user);
-
-        user.setRefreshToken(newRefreshToken);
-        userRepository.save(user);
-
-        return new String[]{newAccessToken, newRefreshToken};
+        log.info("Refresh token rotated for userId={} ip={}", user.getId(), clientIp);
+        return new AuthTokensDto(newAccessToken.token(), newRefreshToken.token(), modelMapper.map(user, UserDto.class));
     }
 
     @Override
+    @Transactional
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+        JWTService.ParsedToken parsedToken = jwtService.parseToken(refreshToken);
+        authSessionService.revokeByParsedToken(parsedToken);
+        log.info("Refresh session revoked for userId={}", parsedToken.userId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public UserDto getUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
         return modelMapper.map(user, UserDto.class);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDto getCurrentUser() {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return modelMapper.map(userRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + user.getId())), UserDto.class);
+    }
+
+    private void registerFailedLogin(String email, String clientIp) {
+        userRepository.findByEmailForUpdate(email).ifPresent(user -> {
+            int failedAttempts = (user.getFailedLoginAttempts() == null ? 0 : user.getFailedLoginAttempts()) + 1;
+            user.setFailedLoginAttempts(failedAttempts);
+            if (failedAttempts >= appSecurityProperties.getLoginMaxAttempts()) {
+                user.setLockedUntil(LocalDateTime.now().plus(appSecurityProperties.getLockoutDuration()));
+                user.setFailedLoginAttempts(0);
+                log.warn("Account locked after repeated failures userId={} email={} ip={}", user.getId(), email, clientIp);
+            } else {
+                log.warn("Failed login for email={} ip={} attempts={}", email, clientIp, failedAttempts);
+            }
+            userRepository.save(user);
+        });
+    }
+
+    private void resetFailedLoginState(User user) {
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
     }
 }

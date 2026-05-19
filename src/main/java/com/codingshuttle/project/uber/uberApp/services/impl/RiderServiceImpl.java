@@ -9,7 +9,6 @@ import com.codingshuttle.project.uber.uberApp.entities.enums.RideStatus;
 import com.codingshuttle.project.uber.uberApp.exceptions.InvalidRideStatusException;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.exceptions.UnauthorizedAccessException;
-import com.codingshuttle.project.uber.uberApp.repositories.PaymentRepository;
 import com.codingshuttle.project.uber.uberApp.repositories.RideRequestRepository;
 import com.codingshuttle.project.uber.uberApp.repositories.RiderRepository;
 import com.codingshuttle.project.uber.uberApp.services.*;
@@ -23,10 +22,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import javax.crypto.Mac;
@@ -53,7 +52,6 @@ public class RiderServiceImpl implements RiderService {
     private final RatingService ratingService;
     private final NotificationService notificationService;
     private final PaymentService paymentService;
-    private final PaymentRepository paymentRepository;
     private final EmailSenderService emailSenderService;
     private final OtpService otpService;
 
@@ -65,6 +63,7 @@ public class RiderServiceImpl implements RiderService {
 
     private final RestClient razorpayRestClient = RestClient.builder()
             .baseUrl("https://api.razorpay.com/v1")
+            .requestFactory(razorpayRequestFactory())
             .build();
 
     private static final DateTimeFormatter RECEIPT_FMT =
@@ -255,22 +254,38 @@ public class RiderServiceImpl implements RiderService {
             throw new RuntimeException("Ride id=" + rideId + " is not a RAZORPAY ride");
         }
 
-        Payment payment = paymentRepository.findByRide(ride)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment not found for ride id=" + rideId));
+        Payment payment = paymentService.getPaymentForRideWithLock(ride);
 
         if (PaymentStatus.CONFIRMED.equals(payment.getPaymentStatus())) {
-            throw new RuntimeException("Payment for ride id=" + rideId + " is already confirmed");
+            return RidePaymentOrderDto.builder()
+                    .key(razorpayKeyId)
+                    .orderId(payment.getProviderOrderId())
+                    .amount(ride.getFare().multiply(new BigDecimal("100")).intValue())
+                    .currency(payment.getCurrency() == null ? "INR" : payment.getCurrency())
+                    .name("BookCar")
+                    .rideId(rideId)
+                    .description("Payment already completed for ride #" + rideId)
+                    .build();
         }
 
         int amountInPaise = ride.getFare().multiply(new BigDecimal("100")).intValue();
-        String credentials = Base64.getEncoder()
-                .encodeToString((razorpayKeyId + ":" + razorpayKeySecret).getBytes(StandardCharsets.UTF_8));
+        if (payment.getProviderOrderId() != null && !payment.getProviderOrderId().isBlank()) {
+            return RidePaymentOrderDto.builder()
+                    .key(razorpayKeyId)
+                    .orderId(payment.getProviderOrderId())
+                    .amount(amountInPaise)
+                    .currency(payment.getCurrency() == null ? "INR" : payment.getCurrency())
+                    .name("BookCar")
+                    .rideId(rideId)
+                    .description("Payment for ride #" + rideId)
+                    .build();
+        }
 
         Map orderResponse;
         try {
             orderResponse = razorpayRestClient.post()
                     .uri("/orders")
-                    .header(HttpHeaders.AUTHORIZATION, "Basic " + credentials)
+                    .header(HttpHeaders.AUTHORIZATION, basicAuthHeader())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("amount", amountInPaise, "currency", "INR", "receipt", "ride_" + rideId))
                     .retrieve()
@@ -285,6 +300,7 @@ public class RiderServiceImpl implements RiderService {
         }
 
         String razorpayOrderId = (String) orderResponse.get("id");
+        paymentService.recordGatewayDetails(payment, razorpayOrderId, null, null, "INR", null);
         log.info("Razorpay order {} created for ride id={}, amount={}paise", razorpayOrderId, rideId, amountInPaise);
 
         return RidePaymentOrderDto.builder()
@@ -311,7 +327,29 @@ public class RiderServiceImpl implements RiderService {
             throw new InvalidRideStatusException("Ride id=" + rideId + " must be ENDED");
         }
 
+        Payment payment = paymentService.getPaymentForRideWithLock(ride);
+        if (PaymentStatus.CONFIRMED.equals(payment.getPaymentStatus())) {
+            if (dto.getRazorpayPaymentId().equals(payment.getProviderPaymentId())) {
+                return modelMapper.map(ride, RideDto.class);
+            }
+            throw new IllegalStateException("Payment for this ride has already been settled with a different provider reference.");
+        }
+
+        if (payment.getProviderOrderId() != null && !payment.getProviderOrderId().equals(dto.getRazorpayOrderId())) {
+            throw new IllegalStateException("Razorpay order does not belong to this ride.");
+        }
+
         verifyRazorpaySignature(dto.getRazorpayOrderId(), dto.getRazorpayPaymentId(), dto.getRazorpaySignature());
+        Map<String, Object> paymentDetails = fetchRazorpayPayment(dto.getRazorpayPaymentId());
+        verifyGatewayPayment(payment, dto, paymentDetails);
+        paymentService.recordGatewayDetails(
+                payment,
+                dto.getRazorpayOrderId(),
+                dto.getRazorpayPaymentId(),
+                dto.getRazorpaySignature(),
+                String.valueOf(paymentDetails.getOrDefault("currency", "INR")),
+                dto.getRazorpayPaymentId()
+        );
         paymentService.processPayment(ride);
         sendRideReceiptEmail(ride, rider.getUser());
 
@@ -339,6 +377,51 @@ public class RiderServiceImpl implements RiderService {
         } catch (Exception e) {
             throw new RuntimeException("Payment signature verification error: " + e.getMessage(), e);
         }
+    }
+
+    private Map<String, Object> fetchRazorpayPayment(String paymentId) {
+        return razorpayRestClient.get()
+                .uri("/payments/{paymentId}", paymentId)
+                .header(HttpHeaders.AUTHORIZATION, basicAuthHeader())
+                .retrieve()
+                .onStatus(status -> status.isError(), (request, response) -> {
+                    throw new IllegalStateException("Could not verify Razorpay payment state: " + response.getStatusCode());
+                })
+                .body(Map.class);
+    }
+
+    private void verifyGatewayPayment(Payment payment, WalletPaymentVerificationDto dto, Map<String, Object> paymentDetails) {
+        String status = String.valueOf(paymentDetails.get("status"));
+        String currency = String.valueOf(paymentDetails.get("currency"));
+        String orderId = String.valueOf(paymentDetails.get("order_id"));
+        Number amount = (Number) paymentDetails.get("amount");
+
+        if (!"captured".equalsIgnoreCase(status)) {
+            throw new IllegalStateException("Razorpay payment is not captured.");
+        }
+        if (!dto.getRazorpayOrderId().equals(orderId)) {
+            throw new IllegalStateException("Razorpay payment order mismatch.");
+        }
+        if (!"INR".equalsIgnoreCase(currency)) {
+            throw new IllegalStateException("Razorpay payment currency mismatch.");
+        }
+
+        int expectedAmount = payment.getAmount().multiply(new BigDecimal("100")).intValue();
+        if (amount == null || amount.intValue() != expectedAmount) {
+            throw new IllegalStateException("Razorpay payment amount mismatch.");
+        }
+    }
+
+    private String basicAuthHeader() {
+        return "Basic " + Base64.getEncoder()
+                .encodeToString((razorpayKeyId + ":" + razorpayKeySecret).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private SimpleClientHttpRequestFactory razorpayRequestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(10000);
+        return factory;
     }
 
     void sendRideReceiptEmail(Ride ride, User riderUser) {

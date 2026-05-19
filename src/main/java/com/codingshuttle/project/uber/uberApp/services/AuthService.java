@@ -4,11 +4,12 @@ import com.codingshuttle.project.uber.uberApp.dto.DriverDto;
 import com.codingshuttle.project.uber.uberApp.dto.SignupDto;
 import com.codingshuttle.project.uber.uberApp.dto.UserDto;
 import com.codingshuttle.project.uber.uberApp.dto.UpdateProfileDto;
+import com.codingshuttle.project.uber.uberApp.dto.AuthTokensDto;
 import com.codingshuttle.project.uber.uberApp.entities.enums.VehicleType;
 
 public interface AuthService {
 
-    String[] login(String email, String password);
+    AuthTokensDto login(String email, String password, String clientIp, String userAgent);
 
     UserDto signup(SignupDto signupDto);
 
@@ -16,7 +17,11 @@ public interface AuthService {
 
     DriverDto onboardNewDriver(Long userId, String vehicleId, VehicleType vehicleType, String phoneNumber);
 
-    String[] refreshToken(String refreshToken);
+    AuthTokensDto refreshToken(String refreshToken, String clientIp, String userAgent);
+
+    void logout(String refreshToken);
 
     UserDto getUserByEmail(String email);
+
+    UserDto getCurrentUser();
 }

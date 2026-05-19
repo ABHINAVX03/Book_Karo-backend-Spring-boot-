@@ -7,6 +7,8 @@ import com.codingshuttle.project.uber.uberApp.strategies.PaymentStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class CashPaymentStrategy implements PaymentStrategy {
@@ -15,12 +17,12 @@ public class CashPaymentStrategy implements PaymentStrategy {
 
     @Override
     public void processPayment(Payment payment) {
+        if (PaymentStatus.CONFIRMED.equals(payment.getPaymentStatus())) {
+            return;
+        }
         payment.setPaymentStatus(PaymentStatus.CONFIRMED);
+        payment.setSettlementReference("ride-cash-" + payment.getRide().getId());
+        payment.setProcessedAt(LocalDateTime.now());
         paymentRepository.save(payment);
     }
 }
-
-//10 ratingsCount -> 4.0
-//new rating 4.6
-//updated rating
-//new rating 44.6/11 -> 4.05

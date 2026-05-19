@@ -15,6 +15,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Builder
+@Table(indexes = {
+        @Index(name = "idx_payment_ride", columnList = "ride_id", unique = true),
+        @Index(name = "idx_payment_provider_reference", columnList = "providerPaymentId")
+})
 public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,6 +35,20 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     private PaymentStatus paymentStatus;
 
+    @Column(length = 16)
+    private String currency;
+
+    private String providerOrderId;
+
+    private String providerPaymentId;
+
+    private String providerSignature;
+
+    @Column(length = 128)
+    private String settlementReference;
+
     @CreationTimestamp
     private LocalDateTime paymentTime;
+
+    private LocalDateTime processedAt;
 }

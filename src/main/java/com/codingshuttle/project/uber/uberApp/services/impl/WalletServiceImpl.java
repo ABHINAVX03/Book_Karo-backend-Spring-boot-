@@ -62,7 +62,7 @@ public class WalletServiceImpl implements WalletService {
     @CacheEvict(cacheNames = "wallets", key = "#user.getId()")
     public Wallet addMoneyToWallet(User user, BigDecimal amount, String transactionId, Ride ride, TransactionMethod transactionMethod) {
         validateAmount(amount);
-        Wallet wallet = findByUser(user);
+        Wallet wallet = findByUserForUpdate(user);
         wallet.setBalance(wallet.getBalance().add(amount));
 
         WalletTransaction walletTransaction = WalletTransaction.builder()
@@ -86,7 +86,7 @@ public class WalletServiceImpl implements WalletService {
                                         String transactionId, Ride ride,
                                         TransactionMethod transactionMethod) {
         validateAmount(amount);
-        Wallet wallet = findByUser(user);
+        Wallet wallet = findByUserForUpdate(user);
         if (wallet.getBalance().compareTo(amount) < 0) {
             throw new RuntimeConflictException("Insufficient wallet balance");
         }
@@ -130,6 +130,11 @@ public class WalletServiceImpl implements WalletService {
     public Wallet findByUser(User user) {
         return walletRepository.findByUser(user)
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found for user with id: "+user.getId()));
+    }
+
+    private Wallet findByUserForUpdate(User user) {
+        return walletRepository.findByUserForUpdate(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found for user with id: " + user.getId()));
     }
 
     @Override
@@ -255,6 +260,12 @@ public class WalletServiceImpl implements WalletService {
     private void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeConflictException("Amount must be greater than 0");
+        }
+        if (amount.scale() > 2) {
+            throw new RuntimeConflictException("Amount can have at most 2 decimal places");
+        }
+        if (amount.compareTo(new BigDecimal("100000.00")) > 0) {
+            throw new RuntimeConflictException("Amount exceeds the allowed limit");
         }
     }
 

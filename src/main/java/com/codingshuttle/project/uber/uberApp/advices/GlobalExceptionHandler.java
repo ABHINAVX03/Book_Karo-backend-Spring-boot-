@@ -10,9 +10,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -93,6 +95,16 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toList());
 
         ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, "Input validation failed", errors);
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class
+    })
+    public ResponseEntity<ApiResponse<?>> handleRequestBindingErrors(Exception exception) {
+        log.warn("Request binding failed: {}", exception.getMessage());
+        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
         return buildErrorResponseEntity(apiError);
     }
 

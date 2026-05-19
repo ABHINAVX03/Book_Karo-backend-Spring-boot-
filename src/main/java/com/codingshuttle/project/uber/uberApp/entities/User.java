@@ -8,8 +8,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,12 +32,12 @@ public class User implements UserDetails {
     private String phoneNumber;
     private String password;
     private Boolean isVerified = false;
+    private Integer failedLoginAttempts = 0;
+    private LocalDateTime lockedUntil;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
     private Set<Role> roles;
-
-    private String refreshToken;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Rider rider;
@@ -58,5 +58,10 @@ public class User implements UserDetails {
     @Override
     public String getUsername() {
         return email;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return lockedUntil == null || lockedUntil.isBefore(LocalDateTime.now());
     }
 }

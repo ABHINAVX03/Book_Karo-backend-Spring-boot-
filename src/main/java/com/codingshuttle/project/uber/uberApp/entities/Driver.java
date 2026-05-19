@@ -37,10 +37,12 @@ public class Driver {
 
     // --- Verification Fields ---
     private String vehicleModel;
-    
+
+    @Builder.Default
     private Boolean vehicleVerified = false;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private DriverVerificationStatus verificationStatus = DriverVerificationStatus.PENDING;
 
     private String rejectionReason;
@@ -50,6 +52,7 @@ public class Driver {
     private String insuranceUrl;
     private String profilePhotoUrl;
 
+    @Builder.Default
     private Boolean blocked = false;
 
     @Column(columnDefinition = "Geometry(Point,4326)")

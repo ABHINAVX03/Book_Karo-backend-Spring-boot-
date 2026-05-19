@@ -17,7 +17,7 @@ import java.util.Optional;
 public interface RideRequestRepository extends JpaRepository<RideRequest, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT r FROM RideRequest r WHERE r.id = :id")
+    @Query("SELECT r FROM RideRequest r LEFT JOIN FETCH r.notifiedDrivers WHERE r.id = :id")
     Optional<RideRequest> findByIdWithLock(@Param("id") Long id);
 
     @Query("""

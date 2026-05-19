@@ -4,6 +4,7 @@ import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.services.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 @Configuration
 @RequiredArgsConstructor
@@ -36,7 +38,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                path.startsWith("/auth/login") ||
                path.startsWith("/auth/send-otp") ||
                path.startsWith("/auth/verify-otp") ||
-               path.startsWith("/auth/refresh");
+               path.startsWith("/auth/refresh") ||
+               path.startsWith("/auth/logout") ||
+               path.startsWith("/actuator/health") ||
+               path.startsWith("/v3/api-docs") ||
+               path.startsWith("/swagger-ui");
     }
 
     @Override
@@ -44,20 +50,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         try {
-            final String requestTokenHeader = request.getHeader("Authorization");
-
-            // FIX: Added space after "Bearer" — previously "Bearer" without space would
-            // accept malformed headers like "BearerXXX" and then fail on the split.
-            if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
+            String token = extractToken(request);
+            if (token == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            String token = requestTokenHeader.split("Bearer ")[1];
-            Long userId = jwtService.getUserIdFromToken(token);
+            JWTService.ParsedToken parsedToken = jwtService.parseToken(token);
+            if (!JWTService.ACCESS_TOKEN_TYPE.equals(parsedToken.type())) {
+                throw new IllegalArgumentException("Access token type is invalid.");
+            }
 
-            if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                User user = userService.getUserById(userId);
+            if (parsedToken.userId() != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                User user = userService.getUserById(parsedToken.userId());
                 UsernamePasswordAuthenticationToken authenticationToken =
                         new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                 authenticationToken.setDetails(
@@ -69,5 +74,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         } catch (Exception ex) {
             handlerExceptionResolver.resolveException(request, response, null, ex);
         }
+    }
+
+    private String extractToken(HttpServletRequest request) {
+        String requestTokenHeader = request.getHeader("Authorization");
+        if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
+            return requestTokenHeader.substring(7);
+        }
+
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        return Arrays.stream(cookies)
+                .filter(cookie -> "accessToken".equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
     }
 }

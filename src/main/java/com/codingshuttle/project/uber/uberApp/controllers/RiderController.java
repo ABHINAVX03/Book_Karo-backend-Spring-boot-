@@ -5,6 +5,7 @@ import com.codingshuttle.project.uber.uberApp.services.AuthService;
 import com.codingshuttle.project.uber.uberApp.services.RiderService;
 import com.codingshuttle.project.uber.uberApp.services.WalletService;
 import com.codingshuttle.project.uber.uberApp.entities.User;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,12 +26,12 @@ public class RiderController {
     private final AuthService authService;
 
     @PostMapping("/estimateFare")
-    public ResponseEntity<RideRequestDto> estimateFare(@RequestBody RideRequestDto rideRequestDto) {
+    public ResponseEntity<RideRequestDto> estimateFare(@Valid @RequestBody RideRequestDto rideRequestDto) {
         return ResponseEntity.ok(riderService.estimateFare(rideRequestDto));
     }
 
     @PostMapping("/requestRide")
-    public ResponseEntity<RideRequestDto> requestRide(@RequestBody RideRequestDto rideRequestDto) {
+    public ResponseEntity<RideRequestDto> requestRide(@Valid @RequestBody RideRequestDto rideRequestDto) {
         return ResponseEntity.ok(riderService.requestRide(rideRequestDto));
     }
 
@@ -45,7 +46,7 @@ public class RiderController {
     }
 
     @PostMapping("/rateDriver")
-    public ResponseEntity<DriverDto> rateDriver(@RequestBody RatingDto ratingDto) {
+    public ResponseEntity<DriverDto> rateDriver(@Valid @RequestBody RatingDto ratingDto) {
         return ResponseEntity.ok(riderService.rateDriver(ratingDto.getRideId(), ratingDto.getRating()));
     }
 
@@ -93,22 +94,22 @@ public class RiderController {
     }
 
     @PostMapping("/wallet/addMoney")
-    public ResponseEntity<WalletPaymentOrderDto> addMoneyToWallet(@RequestBody WalletAmountDto walletAmountDto) {
+    public ResponseEntity<WalletPaymentOrderDto> addMoneyToWallet(@Valid @RequestBody WalletAmountDto walletAmountDto) {
         return ResponseEntity.ok(walletService.createWalletTopUpOrder(walletAmountDto.getAmount()));
     }
 
     @PostMapping("/wallet/payment-order")
-    public ResponseEntity<WalletPaymentOrderDto> createWalletPaymentOrder(@RequestBody WalletAmountDto walletAmountDto) {
+    public ResponseEntity<WalletPaymentOrderDto> createWalletPaymentOrder(@Valid @RequestBody WalletAmountDto walletAmountDto) {
         return ResponseEntity.ok(walletService.createWalletTopUpOrder(walletAmountDto.getAmount()));
     }
 
     @PostMapping("/wallet/verify-payment")
-    public ResponseEntity<WalletDto> verifyWalletPayment(@RequestBody WalletPaymentVerificationDto verificationDto) {
+    public ResponseEntity<WalletDto> verifyWalletPayment(@Valid @RequestBody WalletPaymentVerificationDto verificationDto) {
         return ResponseEntity.ok(walletService.verifyWalletTopUpPayment(verificationDto));
     }
 
     @PostMapping("/wallet/withdraw")
-    public ResponseEntity<WalletDto> withdrawMoneyFromWallet(@RequestBody WalletAmountDto walletAmountDto) {
+    public ResponseEntity<WalletDto> withdrawMoneyFromWallet(@Valid @RequestBody WalletAmountDto walletAmountDto) {
         return ResponseEntity.ok(walletService.withdrawMoneyFromMyWallet(walletAmountDto.getAmount()));
     }
 
@@ -122,7 +123,7 @@ public class RiderController {
     @PostMapping("/rides/{rideId}/verify-ride-payment")
     public ResponseEntity<RideDto> verifyRidePayment(
             @PathVariable Long rideId,
-            @RequestBody WalletPaymentVerificationDto dto) {
+            @Valid @RequestBody WalletPaymentVerificationDto dto) {
         return ResponseEntity.ok(riderService.verifyAndCompleteRidePayment(rideId, dto));
     }
 }

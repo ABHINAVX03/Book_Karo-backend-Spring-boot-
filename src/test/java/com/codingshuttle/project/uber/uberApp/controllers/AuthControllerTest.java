@@ -7,6 +7,7 @@ import com.codingshuttle.project.uber.uberApp.entities.User;
 import com.codingshuttle.project.uber.uberApp.entities.enums.Role;
 import com.codingshuttle.project.uber.uberApp.repositories.RiderRepository;
 import com.codingshuttle.project.uber.uberApp.repositories.UserRepository;
+import com.codingshuttle.project.uber.uberApp.services.OtpService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWeb
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.test.context.TestSecurityContextHolder;
@@ -28,6 +30,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 @AutoConfigureWebTestClient(timeout = "100000")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -43,6 +46,9 @@ class AuthControllerTest {
 
     @Autowired
     private RiderRepository riderRepository;
+
+    @MockBean
+    private OtpService otpService;
 
     private User user;
 
@@ -61,6 +67,8 @@ class AuthControllerTest {
         signupDto.setEmail("test@example.com");
         signupDto.setName("Test name");
         signupDto.setPassword("password");
+        signupDto.setPhoneNumber("+919876543210");
+        when(otpService.isPhoneNumberVerified("+919876543210")).thenReturn(true);
 
         webTestClient.post()
                 .uri("/auth/signup")

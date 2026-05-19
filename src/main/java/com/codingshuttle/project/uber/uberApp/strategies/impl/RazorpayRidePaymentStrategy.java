@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * Strategy for rides paid via Razorpay (card/UPI/netbanking).
@@ -28,19 +29,27 @@ public class RazorpayRidePaymentStrategy implements PaymentStrategy {
     @Override
     @Transactional
     public void processPayment(Payment payment) {
+        if (PaymentStatus.CONFIRMED.equals(payment.getPaymentStatus())) {
+            return;
+        }
         Driver driver = payment.getRide().getDriver();
+        String settlementReference = payment.getProviderPaymentId() != null
+                ? "ride-razorpay-" + payment.getProviderPaymentId()
+                : "ride-razorpay-" + payment.getRide().getId();
 
         BigDecimal driversCut = payment.getAmount().multiply(BigDecimal.ONE.subtract(PLATFORM_COMMISSION));
 
         walletService.addMoneyToWallet(
                 driver.getUser(),
                 driversCut,
-                null,
+                settlementReference,
                 payment.getRide(),
                 TransactionMethod.CARD
         );
 
         payment.setPaymentStatus(PaymentStatus.CONFIRMED);
+        payment.setSettlementReference(settlementReference);
+        payment.setProcessedAt(LocalDateTime.now());
         paymentRepository.save(payment);
     }
 }

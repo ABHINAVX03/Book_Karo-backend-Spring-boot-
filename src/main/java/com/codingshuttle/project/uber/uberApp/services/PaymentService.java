@@ -11,4 +11,8 @@ public interface PaymentService {
     Payment createNewPayment(Ride ride);
 
     void updatePaymentStatus(Payment payment, PaymentStatus status);
+
+    Payment getPaymentForRideWithLock(Ride ride);
+
+    Payment recordGatewayDetails(Payment payment, String orderId, String paymentId, String signature, String currency, String settlementReference);
 }

@@ -38,13 +38,8 @@ public class RatingServiceImpl implements RatingService {
 
         ratingRepository.save(ratingObj);
 
-        Double newRating = ratingRepository.findByDriver(driver)
-                .stream()
-                .map(Rating::getDriverRating)
-                .filter(java.util.Objects::nonNull)
-                .mapToDouble(Integer::doubleValue)
-                .average().orElse(0.0);
-        driver.setRating(newRating);
+        Double newRating = ratingRepository.findAverageDriverRating(driver);
+        driver.setRating(newRating == null ? 0.0 : newRating);
 
         Driver savedDriver = driverRepository.save(driver);
         return modelMapper.map(savedDriver, DriverDto.class);
@@ -62,13 +57,8 @@ public class RatingServiceImpl implements RatingService {
 
         ratingRepository.save(ratingObj);
 
-        Double newRating = ratingRepository.findByRider(rider)
-                .stream()
-                .map(Rating::getRiderRating)
-                .filter(java.util.Objects::nonNull)
-                .mapToDouble(Integer::doubleValue)
-                .average().orElse(0.0);
-        rider.setRating(newRating);
+        Double newRating = ratingRepository.findAverageRiderRating(rider);
+        rider.setRating(newRating == null ? 0.0 : newRating);
 
         Rider savedRider = riderRepository.save(rider);
         return modelMapper.map(savedRider, RiderDto.class);

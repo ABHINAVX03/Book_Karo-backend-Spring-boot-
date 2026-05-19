@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -24,18 +25,24 @@ public class WalletPaymentStrategy implements PaymentStrategy {
     @Override
     @Transactional
     public void processPayment(Payment payment) {
+        if (PaymentStatus.CONFIRMED.equals(payment.getPaymentStatus())) {
+            return;
+        }
         Driver driver = payment.getRide().getDriver();
         Rider rider = payment.getRide().getRider();
+        String settlementReference = "ride-wallet-" + payment.getRide().getId();
 
         walletService.deductMoneyFromWallet(rider.getUser(),
-                payment.getAmount(), null, payment.getRide(), TransactionMethod.RIDE);
+                payment.getAmount(), settlementReference + "-debit", payment.getRide(), TransactionMethod.RIDE);
 
         BigDecimal driversCut = payment.getAmount().multiply(BigDecimal.ONE.subtract(PLATFORM_COMMISSION));
 
         walletService.addMoneyToWallet(driver.getUser(),
-                driversCut, null, payment.getRide(), TransactionMethod.RIDE);
+                driversCut, settlementReference + "-credit", payment.getRide(), TransactionMethod.RIDE);
 
         payment.setPaymentStatus(PaymentStatus.CONFIRMED);
+        payment.setSettlementReference(settlementReference);
+        payment.setProcessedAt(LocalDateTime.now());
         paymentRepository.save(payment);
     }
 }
