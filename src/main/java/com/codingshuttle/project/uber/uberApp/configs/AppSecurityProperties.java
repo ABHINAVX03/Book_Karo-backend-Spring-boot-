@@ -79,16 +79,4 @@ public class AppSecurityProperties {
     public boolean isJwtSecretLongEnough() {
         return jwtSecret != null && jwtSecret.trim().length() >= 32;
     }
-
-    @AssertTrue(message = "JWT secret must contain upper, lower, digit, and symbol characters")
-    public boolean isJwtSecretComplexEnough() {
-        if (jwtSecret == null) {
-            return false;
-        }
-        boolean hasUpper = jwtSecret.chars().anyMatch(Character::isUpperCase);
-        boolean hasLower = jwtSecret.chars().anyMatch(Character::isLowerCase);
-        boolean hasDigit = jwtSecret.chars().anyMatch(Character::isDigit);
-        boolean hasSymbol = jwtSecret.chars().anyMatch(ch -> !Character.isLetterOrDigit(ch));
-        return hasUpper && hasLower && hasDigit && hasSymbol;
-    }
 }

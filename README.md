@@ -64,7 +64,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 For the **prod** profile, set the following environment variables:
 
 ```bash
-export JWT_SECRET_KEY="your_jwt_secret_key_here"
+export JWT_SECRET_KEY="your_jwt_secret_key_here_minimum_32_characters_long"
 export SPRING_DATASOURCE_URL="jdbc:postgresql://<host>:5432/<dbname>?sslmode=require"
 export SPRING_DATASOURCE_USERNAME="your_db_user"
 export SPRING_DATASOURCE_PASSWORD="your_db_password"
@@ -204,7 +204,7 @@ http://localhost:8080/swagger-ui/index.html
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `JWT_SECRET_KEY` | Secret key for signing JWT tokens | Yes |
+| `JWT_SECRET_KEY` | Secret key for signing JWT tokens (min 32 characters) | Yes |
 | `SPRING_DATASOURCE_URL` | JDBC URL for PostgreSQL with PostGIS | Yes |
 | `SPRING_DATASOURCE_USERNAME` | PostgreSQL username | Yes |
 | `SPRING_DATASOURCE_PASSWORD` | PostgreSQL password | Yes |
