@@ -114,6 +114,28 @@ public class DriverController {
 
     // --- Verification Endpoints ---
 
+    /**
+     * Generic document upload endpoint with validation
+     * Accepts: rc, license, insurance, profile-photo
+     */
+    @PostMapping("/upload/{docType}")
+    public ResponseEntity<java.util.Map<String, String>> uploadDocument(
+            @PathVariable String docType,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        
+        // Validate document type
+        java.util.List<String> allowedTypes = java.util.List.of("rc", "license", "insurance", "profile-photo");
+        if (!allowedTypes.contains(docType)) {
+            throw new IllegalArgumentException("Invalid document type. Allowed: " + String.join(", ", allowedTypes));
+        }
+        
+        // Map profile-photo to profile for service layer
+        String serviceDocType = "profile-photo".equals(docType) ? "profile" : docType;
+        String url = driverService.uploadDocument(file, serviceDocType);
+        return ResponseEntity.ok(java.util.Map.of("url", url));
+    }
+
+    // Legacy endpoints - kept for backward compatibility
     @PostMapping("/upload/rc")
     public ResponseEntity<java.util.Map<String, String>> uploadRc(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         String url = driverService.uploadDocument(file, "rc");
