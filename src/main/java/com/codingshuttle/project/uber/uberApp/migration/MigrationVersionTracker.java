@@ -124,7 +124,7 @@ public class MigrationVersionTracker {
                 migration_version, migration_description, migration_type,
                 migration_script, applied_at, applied_by, success,
                 error_message, checksum, execution_time_ms, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb))
             """, TRACKING_TABLE);
         
         try {
