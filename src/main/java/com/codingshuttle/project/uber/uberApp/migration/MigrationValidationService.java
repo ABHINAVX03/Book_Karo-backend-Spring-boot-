@@ -236,9 +236,17 @@ public class MigrationValidationService {
             MigrationVersion previous = versions.get(i - 1);
             
             // Check if versions are sequential
-            if (current.compareTo(previous.nextVersion()) != 0) {
-                logger.warn("Gap detected in migration versions: {} -> {}", 
-                    previous, current);
+            // Avoid using MigrationVersion.nextVersion() for compatibility across Flyway versions.
+            if (current.compareTo(previous) > 0) {
+                try {
+                    long currNum = Long.parseLong(current.getVersion().replaceAll("[^0-9]", ""));
+                    long prevNum = Long.parseLong(previous.getVersion().replaceAll("[^0-9]", ""));
+                    if (currNum - prevNum > 1) {
+                        logger.warn("Gap detected in migration versions: {} -> {}", previous, current);
+                    }
+                } catch (NumberFormatException ex) {
+                    // Versions are non-numeric or use a complex scheme; skip strict gap detection.
+                }
             }
         }
         

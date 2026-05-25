@@ -145,9 +145,15 @@ public class FlywayHealthIndicator implements HealthIndicator {
         );
     }
     
-    private String formatDate(Instant instant) {
-        if (instant == null) {
-            return null;
+    private String formatDate(Object installedOn) {
+        if (installedOn == null) return null;
+        Instant instant = null;
+        if (installedOn instanceof Instant) {
+            instant = (Instant) installedOn;
+        } else if (installedOn instanceof java.util.Date) {
+            instant = ((java.util.Date) installedOn).toInstant();
+        } else {
+            return installedOn.toString();
         }
         return DATE_FORMATTER.format(instant);
     }

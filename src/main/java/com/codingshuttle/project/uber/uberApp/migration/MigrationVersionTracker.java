@@ -12,7 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -128,13 +128,24 @@ public class MigrationVersionTracker {
             """, TRACKING_TABLE);
         
         try {
+            Object installedOnObj = migration.getInstalledOn();
+            java.util.Date appliedAt;
+            if (installedOnObj == null) {
+                appliedAt = new java.util.Date();
+            } else if (installedOnObj instanceof java.time.Instant) {
+                appliedAt = java.util.Date.from((java.time.Instant) installedOnObj);
+            } else if (installedOnObj instanceof java.util.Date) {
+                appliedAt = (java.util.Date) installedOnObj;
+            } else {
+                appliedAt = new java.util.Date();
+            }
+
             jdbcTemplate.update(sql,
                 migration.getVersion() != null ? migration.getVersion().getVersion() : "REPEATABLE",
                 migration.getDescription(),
                 migration.getType().name(),
                 migration.getScript(),
-                migration.getInstalledOn() != null ? 
-                    Date.from(migration.getInstalledOn()) : new Date(),
+                appliedAt,
                 appliedBy != null ? appliedBy : "system",
                 success,
                 errorMessage,
@@ -181,8 +192,18 @@ public class MigrationVersionTracker {
         }
         
         if (migration.getInstalledOn() != null) {
-            metadata.put("installedOn", DATE_FORMATTER.format(
-                LocalDateTime.ofInstant(migration.getInstalledOn(), ZoneId.systemDefault())));
+            Object installedOnObj = migration.getInstalledOn();
+            Instant installedInstant = null;
+            if (installedOnObj instanceof Instant) {
+                installedInstant = (Instant) installedOnObj;
+            } else if (installedOnObj instanceof java.util.Date) {
+                installedInstant = ((java.util.Date) installedOnObj).toInstant();
+            }
+            if (installedInstant != null) {
+                metadata.put("installedOn", DATE_FORMATTER.format(LocalDateTime.ofInstant(installedInstant, ZoneId.systemDefault())));
+            } else {
+                metadata.put("installedOn", installedOnObj.toString());
+            }
         }
         
         metadata.put("executionTime", migration.getExecutionTime());
