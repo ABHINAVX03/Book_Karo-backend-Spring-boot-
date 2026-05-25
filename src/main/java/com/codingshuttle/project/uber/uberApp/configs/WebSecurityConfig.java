@@ -3,6 +3,7 @@ package com.codingshuttle.project.uber.uberApp.configs;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.Customizer;
@@ -56,6 +57,7 @@ public class WebSecurityConfig {
                                 .preload(true)
                                 .maxAgeInSeconds(31536000)))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_AUTH_ROUTES).permitAll()
                         .requestMatchers(PUBLIC_PLATFORM_ROUTES).permitAll()
                         .anyRequest().authenticated()
