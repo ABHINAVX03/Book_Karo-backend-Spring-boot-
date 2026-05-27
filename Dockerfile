@@ -14,4 +14,4 @@ RUN apt-get update \
 RUN useradd --system --create-home --uid 10001 appuser
 USER appuser
 EXPOSE 8080 10000
-ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -jar app.jar"]
