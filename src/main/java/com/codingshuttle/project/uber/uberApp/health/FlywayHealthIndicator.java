@@ -134,15 +134,15 @@ public class FlywayHealthIndicator implements HealthIndicator {
     }
     
     private Map<String, Object> toMigrationMap(MigrationInfo migration) {
-        return Map.of(
-            "version", migration.getVersion() != null ? migration.getVersion().getVersion() : "Repeatable",
-            "description", migration.getDescription(),
-            "type", migration.getType().name(),
-            "state", migration.getState().name(),
-            "installedOn", formatDate(migration.getInstalledOn()),
-            "executionTime", migration.getExecutionTime() + "ms",
-            "script", migration.getScript()
-        );
+        Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("version", migration.getVersion() != null ? migration.getVersion().getVersion() : "Repeatable");
+        map.put("description", migration.getDescription());
+        map.put("type", migration.getType() != null ? migration.getType().name() : null);
+        map.put("state", migration.getState() != null ? migration.getState().name() : null);
+        map.put("installedOn", formatDate(migration.getInstalledOn()));
+        map.put("executionTime", migration.getExecutionTime() != null ? migration.getExecutionTime() + "ms" : null);
+        map.put("script", migration.getScript());
+        return map;
     }
     
     private String formatDate(Object installedOn) {
@@ -166,27 +166,36 @@ public class FlywayHealthIndicator implements HealthIndicator {
         MigrationInfo current = infoService.current();
         MigrationInfo[] allMigrations = infoService.all();
         
-        return Map.of(
-            "currentMigration", current != null ? Map.of(
-                "version", current.getVersion().getVersion(),
-                "description", current.getDescription(),
-                "state", current.getState().name(),
-                "installedOn", formatDate(current.getInstalledOn())
-            ) : null,
-            "statistics", Map.of(
-                "total", allMigrations.length,
-                "applied", Arrays.stream(allMigrations).filter(m -> m.getState().isApplied()).count(),
-                "pending", Arrays.stream(allMigrations).filter(m -> m.getState() == MigrationState.PENDING).count(),
-                "failed", Arrays.stream(allMigrations).filter(m -> m.getState() == MigrationState.FAILED).count()
-            ),
-            "migrations", Arrays.stream(allMigrations)
-                .map(this::toMigrationMap)
-                .collect(Collectors.toList()),
-            "validation", Map.of(
-                "passed", isValidationPassing(),
-                "message", getValidationMessage()
-            )
-        );
+        Map<String, Object> report = new java.util.LinkedHashMap<>();
+        
+        if (current != null) {
+            Map<String, Object> currentMap = new java.util.LinkedHashMap<>();
+            currentMap.put("version", current.getVersion() != null ? current.getVersion().getVersion() : null);
+            currentMap.put("description", current.getDescription());
+            currentMap.put("state", current.getState() != null ? current.getState().name() : null);
+            currentMap.put("installedOn", formatDate(current.getInstalledOn()));
+            report.put("currentMigration", currentMap);
+        } else {
+            report.put("currentMigration", null);
+        }
+        
+        Map<String, Object> statistics = new java.util.LinkedHashMap<>();
+        statistics.put("total", allMigrations.length);
+        statistics.put("applied", Arrays.stream(allMigrations).filter(m -> m.getState().isApplied()).count());
+        statistics.put("pending", Arrays.stream(allMigrations).filter(m -> m.getState() == MigrationState.PENDING).count());
+        statistics.put("failed", Arrays.stream(allMigrations).filter(m -> m.getState() == MigrationState.FAILED).count());
+        report.put("statistics", statistics);
+        
+        report.put("migrations", Arrays.stream(allMigrations)
+            .map(this::toMigrationMap)
+            .collect(Collectors.toList()));
+            
+        Map<String, Object> validation = new java.util.LinkedHashMap<>();
+        validation.put("passed", isValidationPassing());
+        validation.put("message", getValidationMessage());
+        report.put("validation", validation);
+        
+        return report;
     }
     
     private boolean isValidationPassing() {
