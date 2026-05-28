@@ -108,6 +108,13 @@ public class GlobalExceptionHandler {
         return buildErrorResponseEntity(apiError);
     }
 
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<?>> handleMethodNotAllowed(org.springframework.web.HttpRequestMethodNotSupportedException exception) {
+        log.warn("Method not allowed: {}", exception.getMessage());
+        ApiError apiError = new ApiError(HttpStatus.METHOD_NOT_ALLOWED, exception.getMessage(), null);
+        return buildErrorResponseEntity(apiError);
+    }
+
     /**
      * Catch-all handler.
      *
