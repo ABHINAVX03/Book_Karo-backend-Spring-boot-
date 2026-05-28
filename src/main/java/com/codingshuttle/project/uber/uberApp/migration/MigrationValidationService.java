@@ -307,15 +307,13 @@ public class MigrationValidationService {
      * Check if database user has required permissions.
      */
     private boolean hasRequiredPermissions(Connection connection) throws SQLException {
-        // Check for CREATE, ALTER, DROP permissions
-        // This is a simplified check - in production, you'd want more comprehensive checks
-        try {
-            // Try to create a temporary table to check CREATE permission
-            connection.createStatement().execute("CREATE TEMP TABLE flyway_permission_test (id INT)");
-            connection.createStatement().execute("DROP TABLE flyway_permission_test");
+        // Check if database connection is functional and we have basic query permissions.
+        // We avoid CREATE TEMP TABLE because transaction poolers (like Neon) do not support it.
+        try (var statement = connection.createStatement()) {
+            statement.executeQuery("SELECT 1");
             return true;
         } catch (SQLException e) {
-            logger.warn("Permission check failed: {}", e.getMessage());
+            logger.warn("Permission and connectivity check failed: {}", e.getMessage());
             return false;
         }
     }
