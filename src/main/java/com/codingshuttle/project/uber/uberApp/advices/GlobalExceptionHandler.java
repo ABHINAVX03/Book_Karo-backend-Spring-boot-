@@ -136,7 +136,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<?>> handleRuntimeException(RuntimeException exception) {
-        log.warn("Business rule violation [{}]: {}", exception.getClass().getSimpleName(), exception.getMessage());
+        // Log full stacktrace for runtime exceptions to aid debugging in production
+        log.warn("Business rule violation [{}]: {}", exception.getClass().getSimpleName(), exception.getMessage(), exception);
         String message = exception.getMessage() != null ? exception.getMessage() : "Request could not be processed.";
         ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, message, null);
         return buildErrorResponseEntity(apiError);
