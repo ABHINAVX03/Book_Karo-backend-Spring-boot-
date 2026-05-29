@@ -71,6 +71,7 @@ public class RiderServiceImpl implements RiderService {
 
     // ─── Estimate Fare ────────────────────────────────────────────────────────
     @Override
+    @Transactional(readOnly = true)
     public RideRequestDto estimateFare(RideRequestDto rideRequestDto) {
         Rider rider = getCurrentRider();
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
@@ -159,6 +160,7 @@ public class RiderServiceImpl implements RiderService {
 
     // ─── Rate Driver ──────────────────────────────────────────────────────────
     @Override
+    @Transactional(readOnly = true)
     public DriverDto rateDriver(Long rideId, Integer rating) {
         Ride ride = rideService.getRideById(rideId);
         Rider rider = getCurrentRider();
@@ -174,11 +176,13 @@ public class RiderServiceImpl implements RiderService {
 
     // ─── Profile & Rides ─────────────────────────────────────────────────────
     @Override
+    @Transactional(readOnly = true)
     public RiderDto getMyProfile() {
         return modelMapper.map(getCurrentRider(), RiderDto.class);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
         return rideService.getAllRidesOfRider(getCurrentRider(), pageRequest)
                 .map(ride -> modelMapper.map(ride, RideDto.class));
@@ -197,6 +201,7 @@ public class RiderServiceImpl implements RiderService {
      * had many past rides, or falsely match an old ride with the same route.
      */
     @Override
+    @Transactional(readOnly = true)
     public RideDto getCurrentActiveRide() {
         Rider rider = getCurrentRider();
 
@@ -231,6 +236,7 @@ public class RiderServiceImpl implements RiderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Rider getCurrentRider() {
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return riderRepository.findByUser(user)

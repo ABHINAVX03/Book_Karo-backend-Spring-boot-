@@ -195,11 +195,13 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DriverDto getMyProfile() {
         return modelMapper.map(getCurrentDriver(), DriverDto.class);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
         Driver currentDriver = getCurrentDriver();
         return rideService.getAllRidesOfDriver(currentDriver, pageRequest).map(ride -> {
@@ -219,6 +221,7 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public RideRequestDto getIncomingRideRequest() {
         Driver currentDriver = getCurrentDriver();
         List<RideRequest> requests = rideRequestRepository
@@ -228,6 +231,7 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Driver getCurrentDriver() {
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return driverRepository.findByUser(user)
@@ -236,6 +240,7 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DriverDto updateDriverAvailability(boolean available) {
         Driver driver = getCurrentDriver();
         return modelMapper.map(updateDriverAvailability(driver, available), DriverDto.class);

@@ -116,6 +116,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Catches business-logic RuntimeExceptions (e.g. "Vehicle verification pending",
+     * "Driver cannot accept ride") that are NOT covered by more specific handlers above.
+     * Returns 400 Bad Request with the actual error message so the frontend can
+     * display a meaningful message instead of a generic "unexpected error".
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ApiResponse<?>> handleRuntimeException(RuntimeException exception) {
+        log.warn("Business rule violation [{}]: {}", exception.getClass().getSimpleName(), exception.getMessage());
+        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+        return buildErrorResponseEntity(apiError);
+    }
+
+    /**
      * Catch-all handler.
      *
      * FIX: Added structured logging with stack trace so production errors
