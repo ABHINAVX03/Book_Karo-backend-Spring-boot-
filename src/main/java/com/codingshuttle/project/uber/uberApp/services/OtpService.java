@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -34,7 +35,9 @@ public class OtpService {
     @Transactional
     public void sendOtp(String phoneNumber) {
         LocalDateTime now = LocalDateTime.now();
-        OtpChallenge challenge = otpChallengeRepository.findByPhoneNumber(phoneNumber)
+        Optional<OtpChallenge> existingOtpChallenge = otpChallengeRepository.findByPhoneNumber(phoneNumber);
+        boolean existingChallenge = existingOtpChallenge.isPresent();
+        OtpChallenge challenge = existingOtpChallenge
                 .orElseGet(() -> OtpChallenge.builder()
                         .phoneNumber(phoneNumber)
                         .sendCount(0)
@@ -47,7 +50,8 @@ public class OtpService {
             throw new OtpException(HttpStatus.TOO_MANY_REQUESTS, "OTP requests are temporarily locked. Please try again later.");
         }
 
-        if (challenge.getCreatedAt() != null
+        if (existingChallenge
+                && challenge.getCreatedAt() != null
                 && challenge.getCreatedAt().plusSeconds(OTP_REQUEST_COOLDOWN_SECONDS).isAfter(now)) {
             throw new OtpException(HttpStatus.TOO_MANY_REQUESTS, "Please wait 60 seconds before requesting another OTP.");
         }
