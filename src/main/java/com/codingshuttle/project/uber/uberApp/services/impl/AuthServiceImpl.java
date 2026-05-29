@@ -104,7 +104,7 @@ public class AuthServiceImpl implements AuthService {
 
         User mappedUser = modelMapper.map(signupDto, User.class);
         Role role = signupDto.getRole() != null ? signupDto.getRole() : Role.RIDER;
-        mappedUser.setRoles(Set.of(role));
+        mappedUser.setRoles(new java.util.HashSet<>(java.util.Set.of(role)));
         mappedUser.setPassword(passwordEncoder.encode(mappedUser.getPassword()));
         mappedUser.setIsVerified(true);
         mappedUser.setFailedLoginAttempts(0);
@@ -183,7 +183,7 @@ public class AuthServiceImpl implements AuthService {
                 .available(true)
                 .build();
 
-        user.setRoles(Set.of(DRIVER));
+        user.setRoles(new java.util.HashSet<>(java.util.Set.of(DRIVER)));
         userRepository.save(user);
         otpService.clearVerification(phoneNumber);
 
