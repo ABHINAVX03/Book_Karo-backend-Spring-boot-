@@ -161,7 +161,9 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
 
-        if (user.getRoles().contains(Role.RIDER)) {
+        // Defensive: some legacy users may have null roles in DB — treat as empty set
+        java.util.Set<Role> userRoles = user.getRoles() == null ? java.util.Set.of() : user.getRoles();
+        if (userRoles.contains(Role.RIDER)) {
             throw new RuntimeConflictException("User with id " + userId + " is a Rider. Role isolation is enabled.");
         }
 
