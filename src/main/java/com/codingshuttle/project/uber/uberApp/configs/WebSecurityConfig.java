@@ -13,6 +13,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.codingshuttle.project.uber.uberApp.security.JwtAuthFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
 import java.util.List;
 
 @Configuration
@@ -21,9 +24,11 @@ import java.util.List;
 public class WebSecurityConfig {
 
     private final AppSecurityProperties appSecurityProperties;
+    private final JwtAuthFilter jwtAuthFilter;
 
-    public WebSecurityConfig(AppSecurityProperties appSecurityProperties) {
+    public WebSecurityConfig(AppSecurityProperties appSecurityProperties, JwtAuthFilter jwtAuthFilter) {
         this.appSecurityProperties = appSecurityProperties;
+        this.jwtAuthFilter = jwtAuthFilter;
     }
     /** Public auth endpoints only; driver onboarding requires a signed-in user + JWT. */
     private static final String[] PUBLIC_AUTH_ROUTES = {
@@ -61,7 +66,8 @@ public class WebSecurityConfig {
                         .requestMatchers(PUBLIC_AUTH_ROUTES).permitAll()
                         .requestMatchers(PUBLIC_PLATFORM_ROUTES).permitAll()
                         .anyRequest().authenticated()
-                );
+                )
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return httpSecurity.build();
     }
