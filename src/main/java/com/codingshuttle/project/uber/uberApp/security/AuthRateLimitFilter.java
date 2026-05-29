@@ -29,7 +29,8 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        if (!request.getServletPath().startsWith("/auth/")) {
+        String path = request.getServletPath();
+        if (!path.startsWith("/auth/") && !path.equals("/send-otp") && !path.equals("/verify-otp")) {
             return true;
         }
         return !"POST".equalsIgnoreCase(request.getMethod());
@@ -51,13 +52,13 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     }
 
     private Bucket newBucket(String path) {
-        if (path.startsWith("/auth/send-otp")) {
+        if (path.startsWith("/auth/send-otp") || path.equals("/send-otp")) {
             return Bucket.builder()
                     .addLimit(Bandwidth.classic(appSecurityProperties.getOtpMaxRequestsPerMinute(), Refill.intervally(
                             appSecurityProperties.getOtpMaxRequestsPerMinute(), Duration.ofMinutes(1))))
                     .build();
         }
-        if (path.startsWith("/auth/verify-otp")) {
+        if (path.startsWith("/auth/verify-otp") || path.equals("/verify-otp")) {
             return Bucket.builder()
                     .addLimit(Bandwidth.classic(appSecurityProperties.getOtpVerifyMaxRequestsPerMinute(), Refill.intervally(
                             appSecurityProperties.getOtpVerifyMaxRequestsPerMinute(), Duration.ofMinutes(1))))

@@ -28,9 +28,14 @@ public class OtpChallenge {
     private String otpHash;
 
     @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(nullable = false)
     private LocalDateTime expiresAt;
 
     private LocalDateTime verifiedUntil;
+
+    private LocalDateTime consumedAt;
 
     private LocalDateTime blockedUntil;
 

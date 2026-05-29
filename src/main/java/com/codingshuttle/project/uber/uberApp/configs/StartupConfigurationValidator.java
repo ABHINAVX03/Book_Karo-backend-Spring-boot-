@@ -38,9 +38,6 @@ public class StartupConfigurationValidator {
     @Value("${cloudinary.cloud-name:}")
     private String cloudinaryCloudName;
 
-    @Value("${twilio.account-sid:}")
-    private String twilioAccountSid;
-
     @Value("${spring.mail.username:}")
     private String mailUsername;
 
@@ -95,7 +92,7 @@ public class StartupConfigurationValidator {
         services.put("CORS",       !appSecurityProperties.getAllowedOrigins().isEmpty());
         services.put("Razorpay",   isOptionalConfigured(razorpayKeyId, "MISSING_RAZORPAY_KEY_ID"));
         services.put("Cloudinary", StringUtils.hasText(cloudinaryCloudName));
-        services.put("Twilio",     StringUtils.hasText(twilioAccountSid));
+        services.put("SMS Provider", true);
         services.put("Email",      StringUtils.hasText(mailUsername));
 
         log.info("=== Startup Configuration Summary ===");

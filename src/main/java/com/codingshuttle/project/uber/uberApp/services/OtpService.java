@@ -2,10 +2,13 @@ package com.codingshuttle.project.uber.uberApp.services;
 
 import com.codingshuttle.project.uber.uberApp.configs.AppSecurityProperties;
 import com.codingshuttle.project.uber.uberApp.entities.OtpChallenge;
+import com.codingshuttle.project.uber.uberApp.exceptions.OtpException;
 import com.codingshuttle.project.uber.uberApp.repositories.OtpChallengeRepository;
 import com.codingshuttle.project.uber.uberApp.security.TokenHashService;
+import com.codingshuttle.project.uber.uberApp.services.sms.SmsProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,8 +21,12 @@ import java.time.LocalDateTime;
 public class OtpService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int OTP_MAX_REQUESTS_PER_HOUR = 3;
+    private static final int OTP_REQUEST_COOLDOWN_SECONDS = 60;
+    private static final int OTP_REQUEST_LOCK_MINUTES = 60;
+    private static final int OTP_VERIFY_LOCK_MINUTES = 15;
 
-    private final SmsService smsService;
+    private final SmsProvider smsProvider;
     private final OtpChallengeRepository otpChallengeRepository;
     private final TokenHashService tokenHashService;
     private final AppSecurityProperties appSecurityProperties;
@@ -32,33 +39,45 @@ public class OtpService {
                         .phoneNumber(phoneNumber)
                         .sendCount(0)
                         .failedAttempts(0)
+                        .createdAt(now)
+                        .expiresAt(now)
                         .build());
 
         if (challenge.getBlockedUntil() != null && challenge.getBlockedUntil().isAfter(now)) {
-            throw new IllegalStateException("OTP requests are temporarily locked. Please try again later.");
+            throw new OtpException(HttpStatus.TOO_MANY_REQUESTS, "OTP requests are temporarily locked. Please try again later.");
+        }
+
+        if (challenge.getCreatedAt() != null
+                && challenge.getCreatedAt().plusSeconds(OTP_REQUEST_COOLDOWN_SECONDS).isAfter(now)) {
+            throw new OtpException(HttpStatus.TOO_MANY_REQUESTS, "Please wait 60 seconds before requesting another OTP.");
         }
 
         if (challenge.getSendWindowStartedAt() == null
-                || challenge.getSendWindowStartedAt().plusMinutes(10).isBefore(now)) {
+                || challenge.getSendWindowStartedAt().plusHours(1).isBefore(now)) {
             challenge.setSendWindowStartedAt(now);
             challenge.setSendCount(0);
         }
+        if (challenge.getSendCount() == null) {
+            challenge.setSendCount(0);
+        }
 
-        if (challenge.getSendCount() >= appSecurityProperties.getOtpMaxSendsPerWindow()) {
-            challenge.setBlockedUntil(now.plusMinutes(10));
+        if (challenge.getSendCount() >= OTP_MAX_REQUESTS_PER_HOUR) {
+            challenge.setBlockedUntil(now.plusMinutes(OTP_REQUEST_LOCK_MINUTES));
             otpChallengeRepository.save(challenge);
-            throw new IllegalStateException("OTP request limit reached. Please try again later.");
+            throw new OtpException(HttpStatus.TOO_MANY_REQUESTS, "OTP request limit reached. Please try again later.");
         }
 
         String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         challenge.setOtpHash(tokenHashService.hash(otp));
+        challenge.setCreatedAt(now);
         challenge.setExpiresAt(now.plus(appSecurityProperties.getOtpExpiry()));
         challenge.setVerifiedUntil(null);
+        challenge.setConsumedAt(null);
         challenge.setFailedAttempts(0);
         challenge.setSendCount(challenge.getSendCount() + 1);
 
         otpChallengeRepository.save(challenge);
-        smsService.sendSms(phoneNumber, "Your BookCar verification code is: " + otp + ". It expires in 5 minutes.");
+        smsProvider.sendVerificationCode(phoneNumber, otp);
         log.info("OTP sent to phoneNumber={} sendCount={}", phoneNumber, challenge.getSendCount());
     }
 
@@ -67,19 +86,25 @@ public class OtpService {
         LocalDateTime now = LocalDateTime.now();
         OtpChallenge challenge = otpChallengeRepository.findByPhoneNumber(phoneNumber).orElse(null);
         if (challenge == null) {
-            return false;
+            throw new OtpException(HttpStatus.NOT_FOUND, "No OTP request found for this phone number.");
         }
 
         if (challenge.getBlockedUntil() != null && challenge.getBlockedUntil().isAfter(now)) {
-            return false;
+            throw new OtpException(HttpStatus.TOO_MANY_REQUESTS, "OTP verification is temporarily locked. Please try again later.");
+        }
+
+        if (challenge.getConsumedAt() != null) {
+            throw new OtpException(HttpStatus.CONFLICT, "This OTP has already been used. Please request a new OTP.");
         }
 
         if (challenge.getExpiresAt() == null || challenge.getExpiresAt().isBefore(now)) {
-            return false;
+            throw new OtpException(HttpStatus.GONE, "OTP has expired. Please request a new OTP.");
         }
 
         if (tokenHashService.hash(otp).equals(challenge.getOtpHash())) {
             challenge.setVerifiedUntil(now.plus(appSecurityProperties.getVerifiedPhoneWindow()));
+            challenge.setConsumedAt(now);
+            challenge.setExpiresAt(now);
             challenge.setOtpHash(tokenHashService.hash(generateRideOtp()));
             challenge.setFailedAttempts(0);
             challenge.setBlockedUntil(null);
@@ -91,11 +116,13 @@ public class OtpService {
         int failedAttempts = (challenge.getFailedAttempts() == null ? 0 : challenge.getFailedAttempts()) + 1;
         challenge.setFailedAttempts(failedAttempts);
         if (failedAttempts >= appSecurityProperties.getOtpMaxAttempts()) {
-            challenge.setBlockedUntil(now.plusMinutes(15));
+            challenge.setBlockedUntil(now.plusMinutes(OTP_VERIFY_LOCK_MINUTES));
+            otpChallengeRepository.save(challenge);
+            throw new OtpException(HttpStatus.TOO_MANY_REQUESTS, "Too many invalid OTP attempts. Please request a new OTP later.");
         }
         otpChallengeRepository.save(challenge);
         log.warn("OTP verification failed for phoneNumber={} failedAttempts={}", phoneNumber, failedAttempts);
-        return false;
+        throw new OtpException(HttpStatus.BAD_REQUEST, "Invalid OTP. Please try again.");
     }
 
     @Transactional(readOnly = true)

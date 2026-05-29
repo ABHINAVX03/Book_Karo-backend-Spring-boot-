@@ -82,9 +82,6 @@ export CLOUDINARY_API_KEY="your_cloudinary_api_key"
 export CLOUDINARY_API_SECRET="your_cloudinary_api_secret"
 export RAZORPAY_KEY_ID="your_razorpay_key_id"
 export RAZORPAY_KEY_SECRET="your_razorpay_key_secret"
-export TWILIO_ACCOUNT_SID="your_twilio_sid"
-export TWILIO_AUTH_TOKEN="your_twilio_auth_token"
-export TWILIO_PHONE_NUMBER="+1234567890"
 ```
 
 If some optional services are not used, leave those variables blank or unset.
@@ -220,9 +217,6 @@ http://localhost:8080/swagger-ui/index.html
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret | No |
 | `RAZORPAY_KEY_ID` | Razorpay API key | No |
 | `RAZORPAY_KEY_SECRET` | Razorpay API secret | No |
-| `TWILIO_ACCOUNT_SID` | Twilio account SID | No |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token | No |
-| `TWILIO_PHONE_NUMBER` | Twilio sender phone number | No |
 | `SPRING_PROFILES_ACTIVE` | Active Spring profile (`dev` or `prod`) | No |
 
 ---

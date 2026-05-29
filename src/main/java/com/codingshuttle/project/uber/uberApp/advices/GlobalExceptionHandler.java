@@ -1,6 +1,7 @@
 package com.codingshuttle.project.uber.uberApp.advices;
 
 import com.codingshuttle.project.uber.uberApp.exceptions.InvalidRideStatusException;
+import com.codingshuttle.project.uber.uberApp.exceptions.OtpException;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.exceptions.RuntimeConflictException;
 import com.codingshuttle.project.uber.uberApp.exceptions.UnauthorizedAccessException;
@@ -34,6 +35,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleRuntimeConflictException(RuntimeConflictException exception) {
         log.warn("Conflict: {}", exception.getMessage());
         ApiError apiError = new ApiError(HttpStatus.CONFLICT, exception.getMessage(), null);
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(OtpException.class)
+    public ResponseEntity<ApiResponse<?>> handleOtpException(OtpException exception) {
+        log.warn("OTP request failed: {}", exception.getMessage());
+        ApiError apiError = new ApiError(exception.getStatus(), exception.getMessage(), null);
         return buildErrorResponseEntity(apiError);
     }
 

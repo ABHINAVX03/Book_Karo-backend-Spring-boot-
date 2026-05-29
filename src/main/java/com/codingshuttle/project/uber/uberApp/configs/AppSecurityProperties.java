@@ -39,9 +39,6 @@ public class AppSecurityProperties {
     private int otpMaxAttempts = 5;
 
     @Min(1)
-    private int otpMaxSendsPerWindow = 3;
-
-    @Min(1)
     private int refreshMaxAttemptsPerMinute = 20;
 
     @Min(1)

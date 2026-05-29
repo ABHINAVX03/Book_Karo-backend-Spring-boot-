@@ -39,6 +39,10 @@ public class WebSecurityConfig {
             "/auth/verify-otp",
             "/auth/logout"
     };
+    private static final String[] PUBLIC_OTP_ROUTES = {
+            "/send-otp",
+            "/verify-otp"
+    };
     private static final String[] PUBLIC_PLATFORM_ROUTES = {
             "/actuator/health/**",
             "/v3/api-docs/**",
@@ -64,6 +68,7 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_AUTH_ROUTES).permitAll()
+                        .requestMatchers(PUBLIC_OTP_ROUTES).permitAll()
                         .requestMatchers(PUBLIC_PLATFORM_ROUTES).permitAll()
                         .anyRequest().authenticated()
                 )
