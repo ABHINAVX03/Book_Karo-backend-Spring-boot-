@@ -7,6 +7,6 @@ import lombok.Data;
 @Data
 public class OtpRequestDto {
     @NotBlank(message = "Phone number is required")
-    @Pattern(regexp = "^\\+?[1-9]\\d{7,14}$", message = "Phone number must be in international format")
+    @Pattern(regexp = "^\\+?[1-9][0-9\\s-]{7,20}$", message = "Phone number must be in international format")
     private String phoneNumber;
 }

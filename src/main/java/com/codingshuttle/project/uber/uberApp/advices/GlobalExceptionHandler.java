@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -108,11 +109,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             MissingServletRequestParameterException.class,
-            MethodArgumentTypeMismatchException.class
+            MethodArgumentTypeMismatchException.class,
+            HttpMessageNotReadableException.class
     })
     public ResponseEntity<ApiResponse<?>> handleRequestBindingErrors(Exception exception) {
         log.warn("Request binding failed: {}", exception.getMessage());
-        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+        String message = exception instanceof HttpMessageNotReadableException
+                ? "Request body is invalid or missing required fields."
+                : exception.getMessage();
+        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, message, null);
         return buildErrorResponseEntity(apiError);
     }
 
@@ -132,7 +137,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<?>> handleRuntimeException(RuntimeException exception) {
         log.warn("Business rule violation [{}]: {}", exception.getClass().getSimpleName(), exception.getMessage());
-        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+        String message = exception.getMessage() != null ? exception.getMessage() : "Request could not be processed.";
+        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST, message, null);
         return buildErrorResponseEntity(apiError);
     }
 

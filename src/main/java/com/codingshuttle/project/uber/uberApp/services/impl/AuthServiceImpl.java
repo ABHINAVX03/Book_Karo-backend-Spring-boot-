@@ -22,6 +22,7 @@ import com.codingshuttle.project.uber.uberApp.services.DriverService;
 import com.codingshuttle.project.uber.uberApp.services.OtpService;
 import com.codingshuttle.project.uber.uberApp.services.RiderService;
 import com.codingshuttle.project.uber.uberApp.services.WalletService;
+import com.codingshuttle.project.uber.uberApp.utils.PhoneNumberUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -36,6 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.codingshuttle.project.uber.uberApp.entities.enums.Role.DRIVER;
@@ -90,6 +92,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public UserDto signup(SignupDto signupDto) {
+        signupDto.setPhoneNumber(PhoneNumberUtil.toDialablePhoneNumber(signupDto.getPhoneNumber()));
         User user = userRepository.findByEmail(signupDto.getEmail()).orElse(null);
         if (user != null) {
             throw new RuntimeConflictException("Cannot signup, User already exists with email " + signupDto.getEmail());
@@ -140,6 +143,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public DriverDto onboardNewDriver(Long userId, String vehicleId, VehicleType vehicleType, String phoneNumber) {
+        phoneNumber = PhoneNumberUtil.toDialablePhoneNumber(phoneNumber);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null
                 || !authentication.isAuthenticated()
@@ -161,8 +165,9 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeConflictException("User with id " + userId + " is a Rider. Role isolation is enabled.");
         }
 
-        if (driverRepository.findByUser(user).isPresent()) {
-            throw new RuntimeConflictException("Driver profile already exists for user with id " + userId);
+        Optional<Driver> existingDriver = driverRepository.findByUser(user);
+        if (existingDriver.isPresent()) {
+            return modelMapper.map(existingDriver.get(), DriverDto.class);
         }
 
         user.setPhoneNumber(phoneNumber);

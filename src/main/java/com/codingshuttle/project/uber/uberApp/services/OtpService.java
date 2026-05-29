@@ -6,6 +6,7 @@ import com.codingshuttle.project.uber.uberApp.exceptions.OtpException;
 import com.codingshuttle.project.uber.uberApp.repositories.OtpChallengeRepository;
 import com.codingshuttle.project.uber.uberApp.security.TokenHashService;
 import com.codingshuttle.project.uber.uberApp.services.sms.SmsProvider;
+import com.codingshuttle.project.uber.uberApp.utils.PhoneNumberUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,12 +35,13 @@ public class OtpService {
 
     @Transactional
     public void sendOtp(String phoneNumber) {
+        String normalizedPhoneNumber = PhoneNumberUtil.toDialablePhoneNumber(phoneNumber);
         LocalDateTime now = LocalDateTime.now();
-        Optional<OtpChallenge> existingOtpChallenge = otpChallengeRepository.findByPhoneNumber(phoneNumber);
+        Optional<OtpChallenge> existingOtpChallenge = otpChallengeRepository.findByPhoneNumber(normalizedPhoneNumber);
         boolean existingChallenge = existingOtpChallenge.isPresent();
         OtpChallenge challenge = existingOtpChallenge
                 .orElseGet(() -> OtpChallenge.builder()
-                        .phoneNumber(phoneNumber)
+                        .phoneNumber(normalizedPhoneNumber)
                         .sendCount(0)
                         .failedAttempts(0)
                         .createdAt(now)
@@ -81,12 +83,13 @@ public class OtpService {
         challenge.setSendCount(challenge.getSendCount() + 1);
 
         otpChallengeRepository.save(challenge);
-        smsProvider.sendVerificationCode(phoneNumber, otp);
-        log.info("OTP sent to phoneNumber={} sendCount={}", phoneNumber, challenge.getSendCount());
+        smsProvider.sendVerificationCode(normalizedPhoneNumber, otp);
+        log.info("OTP sent to phoneNumber={} sendCount={}", normalizedPhoneNumber, challenge.getSendCount());
     }
 
     @Transactional
     public boolean verifyOtp(String phoneNumber, String otp) {
+        phoneNumber = PhoneNumberUtil.toDialablePhoneNumber(phoneNumber);
         LocalDateTime now = LocalDateTime.now();
         OtpChallenge challenge = otpChallengeRepository.findByPhoneNumber(phoneNumber).orElse(null);
         if (challenge == null) {
@@ -131,6 +134,7 @@ public class OtpService {
 
     @Transactional(readOnly = true)
     public boolean isPhoneNumberVerified(String phoneNumber) {
+        phoneNumber = PhoneNumberUtil.toDialablePhoneNumber(phoneNumber);
         return otpChallengeRepository.findByPhoneNumber(phoneNumber)
                 .map(challenge -> challenge.getVerifiedUntil() != null
                         && challenge.getVerifiedUntil().isAfter(LocalDateTime.now()))
@@ -139,6 +143,7 @@ public class OtpService {
 
     @Transactional
     public void clearVerification(String phoneNumber) {
+        phoneNumber = PhoneNumberUtil.toDialablePhoneNumber(phoneNumber);
         otpChallengeRepository.findByPhoneNumber(phoneNumber).ifPresent(challenge -> {
             challenge.setVerifiedUntil(null);
             otpChallengeRepository.save(challenge);
