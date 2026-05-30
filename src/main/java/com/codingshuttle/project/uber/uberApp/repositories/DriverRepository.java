@@ -76,4 +76,8 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     Optional<Driver> findByUser(User user);
 
     org.springframework.data.domain.Page<Driver> findByVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status, org.springframework.data.domain.Pageable pageable);
+
+    org.springframework.data.domain.Page<Driver> findByVerificationStatusAndVerificationSubmittedTrue(
+            com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status,
+            org.springframework.data.domain.Pageable pageable);
 }

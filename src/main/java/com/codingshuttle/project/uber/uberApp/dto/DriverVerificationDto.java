@@ -23,4 +23,6 @@ public class DriverVerificationDto {
     private String rejectionReason;
     private Boolean available;
     private Boolean blocked;
+    private Boolean verificationSubmitted;
+    private Boolean vehicleVerified;
 }

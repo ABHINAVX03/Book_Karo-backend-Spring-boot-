@@ -55,6 +55,10 @@ public class Driver {
     @Builder.Default
     private Boolean blocked = false;
 
+    /** True after driver explicitly submits documents for admin review */
+    @Builder.Default
+    private Boolean verificationSubmitted = false;
+
     @Column(columnDefinition = "Geometry(Point,4326)")
     private Point currentLocation;
 }

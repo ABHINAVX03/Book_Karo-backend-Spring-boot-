@@ -23,4 +23,5 @@ public class DriverDto {
     private String insuranceUrl;
     private String profilePhotoUrl;
     private String rejectionReason;
+    private Boolean verificationSubmitted;
 }

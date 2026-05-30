@@ -11,8 +11,12 @@ import com.codingshuttle.project.uber.uberApp.entities.enums.RideStatus;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
 import com.codingshuttle.project.uber.uberApp.repositories.DriverRepository;
 import com.codingshuttle.project.uber.uberApp.repositories.RideRequestRepository;
+import com.codingshuttle.project.uber.uberApp.configs.AppAdminProperties;
+import com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus;
 import com.codingshuttle.project.uber.uberApp.services.*;
+import com.codingshuttle.project.uber.uberApp.services.storage.ResilientDocumentStorageService;
 import com.codingshuttle.project.uber.uberApp.utils.GeometryUtil;
+import org.springframework.security.core.GrantedAuthority;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Point;
@@ -41,7 +45,8 @@ public class DriverServiceImpl implements DriverService {
     private final PaymentService paymentService;
     private final RatingService ratingService;
     private final EmailSenderService emailSenderService;
-    private final CloudinaryService cloudinaryService;
+    private final ResilientDocumentStorageService documentStorageService;
+    private final AppAdminProperties appAdminProperties;
 
     private static final DateTimeFormatter RECEIPT_FMT =
             DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
@@ -281,8 +286,10 @@ public class DriverServiceImpl implements DriverService {
 
     @Override
     public Driver createNewDriver(Driver driver) {
-        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.PENDING);
+        driver.setVerificationStatus(DriverVerificationStatus.PENDING);
         driver.setVehicleVerified(false);
+        driver.setVerificationSubmitted(false);
+        driver.setAvailable(false);
         return driverRepository.save(driver);
     }
 
@@ -292,7 +299,7 @@ public class DriverServiceImpl implements DriverService {
     @Transactional
     public String uploadDocument(org.springframework.web.multipart.MultipartFile file, String docType) {
         Driver driver = getCurrentDriver();
-        String url = cloudinaryService.uploadFile(file, "drivers/" + driver.getId());
+        String url = documentStorageService.uploadFile(file, "drivers/" + driver.getId());
 
         switch (docType.toLowerCase()) {
             case "rc" -> driver.setRcUrl(url);
@@ -313,9 +320,16 @@ public class DriverServiceImpl implements DriverService {
         if (driver.getRcUrl() == null || driver.getLicenseUrl() == null || driver.getInsuranceUrl() == null) {
             throw new RuntimeException("Please upload all required documents before submitting.");
         }
-        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.PENDING);
+        if (Boolean.TRUE.equals(driver.getVerificationSubmitted())
+                && DriverVerificationStatus.PENDING.equals(driver.getVerificationStatus())) {
+            throw new RuntimeException("Your documents are already submitted and awaiting admin review.");
+        }
+        driver.setVerificationStatus(DriverVerificationStatus.PENDING);
+        driver.setVerificationSubmitted(true);
+        driver.setRejectionReason(null);
         driverRepository.save(driver);
         log.info("Driver id={} submitted documents for verification", driver.getId());
+        notifyAdminOfVerificationSubmission(driver);
     }
 
     @Override
@@ -327,16 +341,18 @@ public class DriverServiceImpl implements DriverService {
 
     @Override
     public Page<DriverVerificationDto> getPendingDrivers(PageRequest pageRequest) {
-        return driverRepository.findByVerificationStatus(
-                com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.PENDING, 
+        return driverRepository.findByVerificationStatusAndVerificationSubmittedTrue(
+                DriverVerificationStatus.PENDING,
                 pageRequest
         ).map(driver -> modelMapper.map(driver, DriverVerificationDto.class));
     }
 
     @Override
-    public Page<DriverVerificationDto> getAllDriversByStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status, PageRequest pageRequest) {
-        return driverRepository.findByVerificationStatus(status, pageRequest)
-                .map(driver -> modelMapper.map(driver, DriverVerificationDto.class));
+    public Page<DriverVerificationDto> getAllDriversByStatus(DriverVerificationStatus status, PageRequest pageRequest) {
+        Page<Driver> page = DriverVerificationStatus.PENDING.equals(status)
+                ? driverRepository.findByVerificationStatusAndVerificationSubmittedTrue(status, pageRequest)
+                : driverRepository.findByVerificationStatus(status, pageRequest);
+        return page.map(driver -> modelMapper.map(driver, DriverVerificationDto.class));
     }
 
     @Override
@@ -346,11 +362,13 @@ public class DriverServiceImpl implements DriverService {
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
         
         driver.setVehicleVerified(true);
-        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.APPROVED);
+        driver.setVerificationStatus(DriverVerificationStatus.APPROVED);
         driver.setRejectionReason(null);
+        driver.setVerificationSubmitted(true);
         driverRepository.save(driver);
         
         log.info("Driver id={} approved by admin", driverId);
+        notifyDriverOfVerificationDecision(driver, true, null);
     }
 
     @Override
@@ -360,11 +378,122 @@ public class DriverServiceImpl implements DriverService {
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
         
         driver.setVehicleVerified(false);
-        driver.setVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus.REJECTED);
+        driver.setVerificationStatus(DriverVerificationStatus.REJECTED);
         driver.setRejectionReason(reason);
+        driver.setVerificationSubmitted(false);
+        driver.setAvailable(false);
         driverRepository.save(driver);
         
         log.info("Driver id={} rejected by admin. Reason: {}", driverId, reason);
+        notifyDriverOfVerificationDecision(driver, false, reason);
+    }
+
+    @Override
+    @Transactional
+    public void autoApproveDriverForDev(Long driverId) {
+        Driver target = driverRepository.findById(driverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
+
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMIN"::equals);
+        if (!isAdmin) {
+            Driver current = getCurrentDriver();
+            if (!current.getId().equals(driverId)) {
+                throw new RuntimeException("Drivers can only auto-approve their own account in dev mode.");
+            }
+        }
+
+        target.setVehicleVerified(true);
+        target.setVerificationStatus(DriverVerificationStatus.APPROVED);
+        target.setVerificationSubmitted(true);
+        target.setRejectionReason(null);
+        driverRepository.save(target);
+        log.info("Driver id={} auto-approved via dev endpoint", driverId);
+        notifyDriverOfVerificationDecision(target, true, null);
+    }
+
+    private void notifyAdminOfVerificationSubmission(Driver driver) {
+        String adminEmail = appAdminProperties.getNotificationEmail();
+        if (adminEmail == null || adminEmail.isBlank()) {
+            log.info("Admin notification email not configured; skipping verification alert for driver id={}", driver.getId());
+            return;
+        }
+        try {
+            String driverName = driver.getUser() != null ? driver.getUser().getName() : "Driver #" + driver.getId();
+            String body = String.format(
+                    """
+                    A driver has submitted vehicle verification documents for review.
+
+                    Driver ID   : %d
+                    Name        : %s
+                    Vehicle ID  : %s
+                    Status      : PENDING
+
+                    Please review the documents in the admin verification dashboard.
+                    """,
+                    driver.getId(),
+                    driverName,
+                    driver.getVehicleId() != null ? driver.getVehicleId() : "N/A"
+            );
+            emailSenderService.sendEmail(
+                    adminEmail,
+                    "BookCar – New driver verification submission",
+                    body
+            );
+        } catch (Exception e) {
+            log.warn("Could not notify admin about driver verification submission id={}: {}", driver.getId(), e.getMessage());
+        }
+    }
+
+    private void notifyDriverOfVerificationDecision(Driver driver, boolean approved, String rejectionReason) {
+        if (driver.getUser() == null || driver.getUser().getEmail() == null || driver.getUser().getEmail().isBlank()) {
+            log.info("Driver id={} has no email; skipping verification decision notification", driver.getId());
+            return;
+        }
+        try {
+            String driverName = driver.getUser().getName() != null ? driver.getUser().getName() : "Driver";
+            String subject;
+            String body;
+            if (approved) {
+                subject = "BookCar – You are verified! Start accepting rides";
+                body = String.format(
+                        """
+                        Hi %s,
+
+                        Great news — your vehicle verification has been approved.
+
+                        You can now go online from the driver panel and start accepting rides.
+
+                        Thank you for driving with BookCar!
+                        """,
+                        driverName
+                );
+            } else {
+                subject = "BookCar – Verification needs attention";
+                String reason = rejectionReason != null && !rejectionReason.isBlank()
+                        ? rejectionReason
+                        : "One or more documents were invalid or unclear.";
+                body = String.format(
+                        """
+                        Hi %s,
+
+                        Your vehicle verification was not approved.
+
+                        Reason: %s
+
+                        Please re-upload the correct documents from the verification page and submit again.
+
+                        BookCar Team
+                        """,
+                        driverName,
+                        reason
+                );
+            }
+            emailSenderService.sendEmail(driver.getUser().getEmail(), subject, body);
+        } catch (Exception e) {
+            log.warn("Could not notify driver id={} about verification decision: {}", driver.getId(), e.getMessage());
+        }
     }
 
     // ─── Receipt Email ────────────────────────────────────────────────────────

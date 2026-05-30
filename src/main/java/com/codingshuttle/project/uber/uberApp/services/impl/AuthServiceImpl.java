@@ -180,7 +180,7 @@ public class AuthServiceImpl implements AuthService {
                 .rating(0.0)
                 .vehicleId(vehicleId)
                 .vehicleType(vehicleType)
-                .available(true)
+                .available(false)
                 .build();
 
         user.setRoles(new java.util.HashSet<>(java.util.Set.of(DRIVER)));

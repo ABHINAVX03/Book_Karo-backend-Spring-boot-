@@ -55,4 +55,6 @@ public interface DriverService {
     void blockDriver(Long driverId);
 
     void unblockDriver(Long driverId);
+
+    void autoApproveDriverForDev(Long driverId);
 }
