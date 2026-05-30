@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -25,6 +26,21 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
 
     /** Used by AdminController.getRevenueStats() — paginated ENDED rides */
     Page<Ride> findByRideStatus(RideStatus rideStatus, Pageable pageable);
+
+    @Query(
+            value = """
+                    SELECT DISTINCT r FROM Ride r
+                    LEFT JOIN FETCH r.rider rider
+                    LEFT JOIN FETCH rider.user
+                    LEFT JOIN FETCH r.driver driver
+                    LEFT JOIN FETCH driver.user
+                    WHERE r.rideStatus = :status
+                    """,
+            countQuery = "SELECT COUNT(r) FROM Ride r WHERE r.rideStatus = :status"
+    )
+    Page<Ride> findByRideStatusWithRiderAndDriver(
+            @Param("status") RideStatus status,
+            Pageable pageable);
 
     /** Used by AdminController.getRevenueStats() — total completed ride count */
     @Query("SELECT COUNT(r) FROM Ride r WHERE r.rideStatus = :status")

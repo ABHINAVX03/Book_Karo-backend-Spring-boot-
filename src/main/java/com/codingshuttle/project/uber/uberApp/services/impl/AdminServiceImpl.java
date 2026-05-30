@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -22,6 +23,7 @@ public class AdminServiceImpl implements AdminService {
     private static final BigDecimal PLATFORM_COMMISSION_PERCENTAGE = new BigDecimal("0.3");
 
     @Override
+    @Transactional(readOnly = true)
     public AdminRevenueDto getRevenueStats(Pageable pageable) {
         Long totalCompletedRides = rideRepository.countByRideStatus(RideStatus.ENDED);
         BigDecimal totalFareCollected = rideRepository.sumFareByRideStatus(RideStatus.ENDED);
@@ -31,7 +33,7 @@ public class AdminServiceImpl implements AdminService {
                 .setScale(2, RoundingMode.HALF_UP);
         BigDecimal totalDriverPayouts = totalFareCollected.subtract(totalCommissionEarned);
 
-        Page<Ride> ridePage = rideRepository.findByRideStatus(RideStatus.ENDED, pageable);
+        Page<Ride> ridePage = rideRepository.findByRideStatusWithRiderAndDriver(RideStatus.ENDED, pageable);
 
         return AdminRevenueDto.builder()
                 .totalCompletedRides(totalCompletedRides)
