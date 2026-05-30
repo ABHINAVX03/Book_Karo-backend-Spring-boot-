@@ -14,6 +14,7 @@ import com.codingshuttle.project.uber.uberApp.repositories.RideRequestRepository
 import com.codingshuttle.project.uber.uberApp.configs.AppAdminProperties;
 import com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus;
 import com.codingshuttle.project.uber.uberApp.services.*;
+import com.codingshuttle.project.uber.uberApp.mappers.DriverVerificationMapper;
 import com.codingshuttle.project.uber.uberApp.services.storage.ResilientDocumentStorageService;
 import com.codingshuttle.project.uber.uberApp.utils.GeometryUtil;
 import org.springframework.security.core.GrantedAuthority;
@@ -47,6 +48,7 @@ public class DriverServiceImpl implements DriverService {
     private final EmailSenderService emailSenderService;
     private final ResilientDocumentStorageService documentStorageService;
     private final AppAdminProperties appAdminProperties;
+    private final DriverVerificationMapper driverVerificationMapper;
 
     private static final DateTimeFormatter RECEIPT_FMT =
             DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
@@ -333,26 +335,29 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DriverVerificationDto getDriverVerificationDetails(Long driverId) {
-        Driver driver = driverRepository.findById(driverId)
+        Driver driver = driverRepository.findByIdWithUser(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id " + driverId));
-        return modelMapper.map(driver, DriverVerificationDto.class);
+        return driverVerificationMapper.toDto(driver);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<DriverVerificationDto> getPendingDrivers(PageRequest pageRequest) {
-        return driverRepository.findByVerificationStatusAndVerificationSubmittedTrue(
+        return driverRepository.findSubmittedByStatusWithUser(
                 DriverVerificationStatus.PENDING,
                 pageRequest
-        ).map(driver -> modelMapper.map(driver, DriverVerificationDto.class));
+        ).map(driverVerificationMapper::toDto);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<DriverVerificationDto> getAllDriversByStatus(DriverVerificationStatus status, PageRequest pageRequest) {
         Page<Driver> page = DriverVerificationStatus.PENDING.equals(status)
-                ? driverRepository.findByVerificationStatusAndVerificationSubmittedTrue(status, pageRequest)
-                : driverRepository.findByVerificationStatus(status, pageRequest);
-        return page.map(driver -> modelMapper.map(driver, DriverVerificationDto.class));
+                ? driverRepository.findSubmittedByStatusWithUser(status, pageRequest)
+                : driverRepository.findByStatusWithUser(status, pageRequest);
+        return page.map(driverVerificationMapper::toDto);
     }
 
     @Override

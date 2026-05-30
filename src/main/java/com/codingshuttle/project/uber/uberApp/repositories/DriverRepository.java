@@ -2,6 +2,9 @@ package com.codingshuttle.project.uber.uberApp.repositories;
 
 import com.codingshuttle.project.uber.uberApp.entities.Driver;
 import com.codingshuttle.project.uber.uberApp.entities.User;
+import com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -75,9 +78,41 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
 
     Optional<Driver> findByUser(User user);
 
-    org.springframework.data.domain.Page<Driver> findByVerificationStatus(com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status, org.springframework.data.domain.Pageable pageable);
+    Page<Driver> findByVerificationStatus(DriverVerificationStatus status, Pageable pageable);
 
-    org.springframework.data.domain.Page<Driver> findByVerificationStatusAndVerificationSubmittedTrue(
-            com.codingshuttle.project.uber.uberApp.entities.enums.DriverVerificationStatus status,
-            org.springframework.data.domain.Pageable pageable);
+    Page<Driver> findByVerificationStatusAndVerificationSubmittedTrue(
+            DriverVerificationStatus status,
+            Pageable pageable);
+
+    @Query(
+            value = """
+                    SELECT DISTINCT d FROM Driver d
+                    JOIN FETCH d.user
+                    WHERE d.verificationStatus = :status
+                      AND d.verificationSubmitted = true
+                    """,
+            countQuery = """
+                    SELECT COUNT(d) FROM Driver d
+                    WHERE d.verificationStatus = :status
+                      AND d.verificationSubmitted = true
+                    """
+    )
+    Page<Driver> findSubmittedByStatusWithUser(
+            @Param("status") DriverVerificationStatus status,
+            Pageable pageable);
+
+    @Query(
+            value = """
+                    SELECT DISTINCT d FROM Driver d
+                    JOIN FETCH d.user
+                    WHERE d.verificationStatus = :status
+                    """,
+            countQuery = "SELECT COUNT(d) FROM Driver d WHERE d.verificationStatus = :status"
+    )
+    Page<Driver> findByStatusWithUser(
+            @Param("status") DriverVerificationStatus status,
+            Pageable pageable);
+
+    @Query("SELECT d FROM Driver d JOIN FETCH d.user WHERE d.id = :id")
+    Optional<Driver> findByIdWithUser(@Param("id") Long id);
 }
