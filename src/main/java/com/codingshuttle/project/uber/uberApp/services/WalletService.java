@@ -30,7 +30,9 @@ public interface WalletService {
 
     WalletDto getMyWallet();
 
-    WalletDto addMoneyToMyWallet(BigDecimal amount);
+    Wallet deductMoneyFromWalletAllowingNegative(User user, BigDecimal amount,
+                                                 String transactionId, Ride ride,
+                                                 TransactionMethod transactionMethod);
 
     WalletPaymentOrderDto createWalletTopUpOrder(BigDecimal amount);
 

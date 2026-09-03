@@ -85,7 +85,7 @@ public class DriverServiceImpl implements DriverService {
 
         Driver savedDriver = updateDriverAvailability(currentDriver, false);
         Ride ride = rideService.createNewRide(rideRequest, savedDriver);
-        return modelMapper.map(ride, RideDto.class);
+        return toDriverRideDto(ride);
     }
 
     @Override
@@ -120,7 +120,7 @@ public class DriverServiceImpl implements DriverService {
             log.warn("Could not send cancellation email for ride id={}: {}", rideId, e.getMessage());
         }
 
-        return modelMapper.map(ride, RideDto.class);
+        return toDriverRideDto(ride);
     }
 
     @Override
@@ -145,7 +145,7 @@ public class DriverServiceImpl implements DriverService {
         paymentService.createNewPayment(savedRide);
         ratingService.createNewRating(savedRide);
 
-        return modelMapper.map(savedRide, RideDto.class);
+        return toDriverRideDto(savedRide);
     }
 
     @Override
@@ -163,18 +163,18 @@ public class DriverServiceImpl implements DriverService {
 
         ride.setEndedAt(LocalDateTime.now());
 
-        // Process payment BEFORE updating ride status to ensure atomicity
-        // If payment fails, the ride status remains ONGOING and no inconsistent state is created
+        // Process payment before status change; if payment fails unexpectedly, driver is still freed
         if (PaymentMethod.RAZORPAY.equals(ride.getPaymentMethod())) {
-            // For Razorpay rides: do NOT process payment here.
-            // The rider will pay via Razorpay checkout and call /riders/rides/{id}/verify-ride-payment
             log.info("Ride id={} ended with RAZORPAY — awaiting rider payment", rideId);
         } else {
-            // WALLET / CASH: process payment immediately (before status change)
-            paymentService.processPayment(ride);
+            try {
+                paymentService.processPayment(ride);
+            } catch (Exception e) {
+                log.error("Payment processing error for ride id={}: {}", rideId, e.getMessage(), e);
+            }
         }
 
-        // Update ride status to ENDED only after successful payment processing
+        // Update ride status to ENDED and free the driver
         Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ENDED);
         updateDriverAvailability(driver, true);
 
@@ -182,7 +182,7 @@ public class DriverServiceImpl implements DriverService {
             sendRideReceiptEmail(savedRide);
         }
 
-        return modelMapper.map(savedRide, RideDto.class);
+        return toDriverRideDto(savedRide);
     }
 
     @Override
@@ -207,12 +207,25 @@ public class DriverServiceImpl implements DriverService {
         return modelMapper.map(getCurrentDriver(), DriverDto.class);
     }
 
+    private RideDto toDriverRideDto(Ride ride) {
+        if (ride == null) return null;
+        RideDto rideDto = modelMapper.map(ride, RideDto.class);
+        rideDto.setOtp(null); // Never leak OTP to driver
+        if (rideDto.getDriver() != null) {
+            rideDto.getDriver().setRcUrl(null);
+            rideDto.getDriver().setLicenseUrl(null);
+            rideDto.getDriver().setInsuranceUrl(null);
+            rideDto.getDriver().setRejectionReason(null);
+        }
+        return rideDto;
+    }
+
     @Override
     @Transactional(readOnly = true)
     public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
         Driver currentDriver = getCurrentDriver();
         return rideService.getAllRidesOfDriver(currentDriver, pageRequest).map(ride -> {
-            RideDto rideDto = modelMapper.map(ride, RideDto.class);
+            RideDto rideDto = toDriverRideDto(ride);
             rideDto.setRiderRating(ratingService.getRiderRating(ride));
             return rideDto;
         });
@@ -234,7 +247,9 @@ public class DriverServiceImpl implements DriverService {
         List<RideRequest> requests = rideRequestRepository
                 .findByNotifiedDriversContainingAndRideRequestStatus(currentDriver, RideRequestStatus.PENDING);
         if (requests == null || requests.isEmpty()) return null;
-        return modelMapper.map(requests.get(0), RideRequestDto.class);
+        RideRequestDto dto = modelMapper.map(requests.get(0), RideRequestDto.class);
+        dto.setOtp(null); // Never leak OTP to driver
+        return dto;
     }
 
     @Override

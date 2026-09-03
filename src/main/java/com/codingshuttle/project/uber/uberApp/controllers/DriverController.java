@@ -97,8 +97,13 @@ public class DriverController {
     }
 
     @PostMapping("/wallet/addMoney")
-    public ResponseEntity<WalletDto> addMoneyToWallet(@Valid @RequestBody WalletAmountDto walletAmountDto) {
-        return ResponseEntity.ok(walletService.addMoneyToMyWallet(walletAmountDto.getAmount()));
+    public ResponseEntity<WalletPaymentOrderDto> addMoneyToWallet(@Valid @RequestBody WalletAmountDto walletAmountDto) {
+        return ResponseEntity.ok(walletService.createWalletTopUpOrder(walletAmountDto.getAmount()));
+    }
+
+    @PostMapping("/wallet/verify-payment")
+    public ResponseEntity<WalletDto> verifyWalletPayment(@Valid @RequestBody WalletPaymentVerificationDto verificationDto) {
+        return ResponseEntity.ok(walletService.verifyWalletTopUpPayment(verificationDto));
     }
 
     @PostMapping("/wallet/withdraw")

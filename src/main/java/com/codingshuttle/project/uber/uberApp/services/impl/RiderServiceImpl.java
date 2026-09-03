@@ -8,6 +8,7 @@ import com.codingshuttle.project.uber.uberApp.entities.enums.RideRequestStatus;
 import com.codingshuttle.project.uber.uberApp.entities.enums.RideStatus;
 import com.codingshuttle.project.uber.uberApp.exceptions.InvalidRideStatusException;
 import com.codingshuttle.project.uber.uberApp.exceptions.ResourceNotFoundException;
+import com.codingshuttle.project.uber.uberApp.exceptions.RuntimeConflictException;
 import com.codingshuttle.project.uber.uberApp.exceptions.UnauthorizedAccessException;
 import com.codingshuttle.project.uber.uberApp.repositories.RideRequestRepository;
 import com.codingshuttle.project.uber.uberApp.repositories.RiderRepository;
@@ -54,6 +55,7 @@ public class RiderServiceImpl implements RiderService {
     private final PaymentService paymentService;
     private final EmailSenderService emailSenderService;
     private final OtpService otpService;
+    private final WalletService walletService;
 
     @Value("${razorpay.key-id:}")
     private String razorpayKeyId;
@@ -101,6 +103,14 @@ public class RiderServiceImpl implements RiderService {
         String otp = otpService.generateRideOtp();
         rideRequest.setOtp(otp);
 
+        if (PaymentMethod.WALLET.equals(rideRequestDto.getPaymentMethod())) {
+            Wallet wallet = walletService.findByUser(rider.getUser());
+            if (wallet != null && wallet.getBalance() != null && wallet.getBalance().compareTo(BigDecimal.ZERO) < 0) {
+                throw new RuntimeConflictException("You have an outstanding negative wallet balance of ₹"
+                        + wallet.getBalance().abs() + ". Please clear your dues before booking a ride.");
+            }
+        }
+
         RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
         log.info("RideRequest id={} created for rider id={}, fare={}", savedRideRequest.getId(), rider.getId(), fare);
 
@@ -125,7 +135,7 @@ public class RiderServiceImpl implements RiderService {
     @Transactional
     public RideRequestDto cancelRideRequest(Long rideRequestId) {
         Rider rider = getCurrentRider();
-        RideRequest rideRequest = rideRequestRepository.findById(rideRequestId)
+        RideRequest rideRequest = rideRequestRepository.findByIdWithLock(rideRequestId)
                 .orElseThrow(() -> new ResourceNotFoundException("RideRequest not found with id: " + rideRequestId));
         if (!rider.equals(rideRequest.getRider())) {
             throw new UnauthorizedAccessException("Rider id=" + rider.getId() + " does not own ride request id=" + rideRequestId);
@@ -155,7 +165,18 @@ public class RiderServiceImpl implements RiderService {
         driverService.updateDriverAvailability(ride.getDriver(), true);
         notificationService.notifyDriverAboutRideCancellation(ride.getDriver(), rideId);
         log.info("Ride id={} cancelled by rider id={}", rideId, rider.getId());
-        return modelMapper.map(savedRide, RideDto.class);
+        return sanitizeRideForRider(modelMapper.map(savedRide, RideDto.class));
+    }
+
+    private RideDto sanitizeRideForRider(RideDto rideDto) {
+        if (rideDto != null && rideDto.getDriver() != null) {
+            DriverDto driver = rideDto.getDriver();
+            driver.setRcUrl(null);
+            driver.setLicenseUrl(null);
+            driver.setInsuranceUrl(null);
+            driver.setRejectionReason(null);
+        }
+        return rideDto;
     }
 
     // ─── Rate Driver ──────────────────────────────────────────────────────────
@@ -185,7 +206,7 @@ public class RiderServiceImpl implements RiderService {
     @Transactional(readOnly = true)
     public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
         return rideService.getAllRidesOfRider(getCurrentRider(), pageRequest)
-                .map(ride -> modelMapper.map(ride, RideDto.class));
+                .map(ride -> sanitizeRideForRider(modelMapper.map(ride, RideDto.class)));
     }
 
     /**
@@ -208,7 +229,7 @@ public class RiderServiceImpl implements RiderService {
         // 1. Try to find CONFIRMED or ONGOING ride
         Optional<Ride> activeRide = rideService.getCurrentActiveRideForRider(rider);
         if (activeRide.isPresent()) {
-            return modelMapper.map(activeRide.get(), RideDto.class);
+            return sanitizeRideForRider(modelMapper.map(activeRide.get(), RideDto.class));
         }
 
         // 2. If no CONFIRMED/ONGOING, check for the most recent ENDED ride that hasn't been rated
@@ -219,7 +240,7 @@ public class RiderServiceImpl implements RiderService {
             // If the last ride is ENDED and rider hasn't rated the driver yet, it's still "active" for the UI
             if (RideStatus.ENDED.equals(lastRide.getRideStatus())) {
                 if (ratingService.getDriverRating(lastRide) == null) {
-                    return modelMapper.map(lastRide, RideDto.class);
+                    return sanitizeRideForRider(modelMapper.map(lastRide, RideDto.class));
                 }
             }
         }

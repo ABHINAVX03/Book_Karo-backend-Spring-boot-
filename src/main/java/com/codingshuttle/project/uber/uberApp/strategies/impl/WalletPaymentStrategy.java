@@ -32,7 +32,7 @@ public class WalletPaymentStrategy implements PaymentStrategy {
         Rider rider = payment.getRide().getRider();
         String settlementReference = "ride-wallet-" + payment.getRide().getId();
 
-        walletService.deductMoneyFromWallet(rider.getUser(),
+        walletService.deductMoneyFromWalletAllowingNegative(rider.getUser(),
                 payment.getAmount(), settlementReference + "-debit", payment.getRide(), TransactionMethod.RIDE);
 
         BigDecimal driversCut = payment.getAmount().multiply(BigDecimal.ONE.subtract(PLATFORM_COMMISSION));

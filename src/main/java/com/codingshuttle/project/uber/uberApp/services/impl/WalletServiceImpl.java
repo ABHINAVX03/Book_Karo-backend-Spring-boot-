@@ -150,16 +150,25 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    @CacheEvict(cacheNames = "wallets", key = "#root.target.getCurrentUserIdForCache()")
-    public WalletDto addMoneyToMyWallet(BigDecimal amount) {
-        Wallet wallet = addMoneyToWallet(
-                getCurrentUser(),
-                amount,
-                UUID.randomUUID().toString(),
-                null,
-                TransactionMethod.BANKING
-        );
-        return toWalletDto(wallet);
+    @CacheEvict(cacheNames = "wallets", key = "#user.getId()")
+    public Wallet deductMoneyFromWalletAllowingNegative(User user, BigDecimal amount,
+                                                        String transactionId, Ride ride,
+                                                        TransactionMethod transactionMethod) {
+        validateAmount(amount);
+        Wallet wallet = findByUserForUpdate(user);
+        wallet.setBalance(wallet.getBalance().subtract(amount));
+
+        WalletTransaction walletTransaction = WalletTransaction.builder()
+                .transactionId(transactionId)
+                .ride(ride)
+                .wallet(wallet)
+                .transactionType(TransactionType.DEBIT)
+                .transactionMethod(transactionMethod)
+                .amount(amount)
+                .build();
+
+        walletTransactionService.createNewWalletTransaction(walletTransaction);
+        return walletRepository.save(wallet);
     }
 
     @Override
