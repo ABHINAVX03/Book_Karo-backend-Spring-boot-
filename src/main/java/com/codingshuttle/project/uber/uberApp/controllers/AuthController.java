@@ -56,10 +56,14 @@ public class AuthController {
     }
 
     @PostMapping("/send-otp")
-    public ResponseEntity<Void> sendOtp(@Valid @RequestBody OtpRequestDto otpRequestDto, HttpServletRequest request) {
+    public ResponseEntity<java.util.Map<String, Object>> sendOtp(@Valid @RequestBody OtpRequestDto otpRequestDto, HttpServletRequest request) {
         captchaVerificationService.assertValidCaptcha(request);
-        otpService.sendOtp(otpRequestDto.getPhoneNumber());
-        return ResponseEntity.ok().build();
+        String otp = otpService.sendOtp(otpRequestDto.getPhoneNumber());
+        return ResponseEntity.ok(java.util.Map.of(
+                "success", true,
+                "message", "Verification code generated",
+                "otp", otp
+        ));
     }
 
     @PostMapping("/verify-otp")
