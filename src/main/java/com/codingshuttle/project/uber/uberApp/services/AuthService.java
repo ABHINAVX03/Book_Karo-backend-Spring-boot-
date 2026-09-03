@@ -24,4 +24,6 @@ public interface AuthService {
     UserDto getUserByEmail(String email);
 
     UserDto getCurrentUser();
+
+    void resetPassword(String email, String newPassword);
 }

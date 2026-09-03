@@ -235,6 +235,18 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + user.getId())), UserDto.class);
     }
 
+    @Override
+    @Transactional
+    public void resetPassword(String email, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No account exists with email: " + email));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+        log.info("Password successfully reset for email={}", email);
+    }
+
     private void registerFailedLogin(String email, String clientIp) {
         userRepository.findByEmailForUpdate(email).ifPresent(user -> {
             int failedAttempts = (user.getFailedLoginAttempts() == null ? 0 : user.getFailedLoginAttempts()) + 1;

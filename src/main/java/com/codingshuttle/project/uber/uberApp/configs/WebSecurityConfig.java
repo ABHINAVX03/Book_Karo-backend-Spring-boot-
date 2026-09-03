@@ -37,6 +37,7 @@ public class WebSecurityConfig {
             "/auth/refresh",
             "/auth/send-otp",
             "/auth/verify-otp",
+            "/auth/reset-password",
             "/auth/logout"
     };
     private static final String[] PUBLIC_OTP_ROUTES = {

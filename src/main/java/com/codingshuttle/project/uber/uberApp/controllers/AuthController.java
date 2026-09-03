@@ -128,6 +128,12 @@ public class AuthController {
         return ResponseEntity.ok(authService.getCurrentUser());
     }
 
+    @PostMapping("/reset-password")
+    public ResponseEntity<java.util.Map<String, String>> resetPassword(@Valid @RequestBody PasswordResetDto passwordResetDto) {
+        authService.resetPassword(passwordResetDto.getEmail(), passwordResetDto.getNewPassword());
+        return ResponseEntity.ok(java.util.Map.of("message", "Password reset successfully. You can now log in."));
+    }
+
     private void addAccessTokenCookie(HttpServletResponse response, String token, boolean secure) {
         ResponseCookie accessCookie = ResponseCookie.from("accessToken", token)
                 .httpOnly(true)
